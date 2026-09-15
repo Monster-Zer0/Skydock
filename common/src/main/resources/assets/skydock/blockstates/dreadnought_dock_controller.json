@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "skydock:block/dreadnought_dock_controller"
+    }
+  }
+}

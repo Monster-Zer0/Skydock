@@ -1,0 +1,24 @@
+{
+  "key": {
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "C": {
+      "item": "minecraft:compass"
+    }
+  },
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "IRI",
+    "RCR",
+    "IRI"
+  ],
+  "category": "misc",
+  "result": {
+    "id": "skydock:scout_dock_controller",
+    "count": 1
+  }
+}

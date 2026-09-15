@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "skydock:block/scout_dock_controller"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "skydock:block/mooring_clamp"
+    },
+    "facing=east": {
+      "model": "skydock:block/mooring_clamp",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "skydock:block/mooring_clamp",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "skydock:block/mooring_clamp",
+      "y": 270
+    }
+  }
+}

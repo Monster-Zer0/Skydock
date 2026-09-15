@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "skydock:block/engine"
+    },
+    "facing=east": {
+      "model": "skydock:block/engine",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "skydock:block/engine",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "skydock:block/engine",
+      "y": 270
+    }
+  }
+}

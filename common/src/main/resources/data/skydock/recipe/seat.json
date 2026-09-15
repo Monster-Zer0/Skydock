@@ -1,0 +1,21 @@
+{
+  "key": {
+    "S": {
+      "item": "minecraft:stick"
+    },
+    "P": {
+      "item": "minecraft:spruce_planks"
+    }
+  },
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "P  ",
+    "PPP",
+    "S S"
+  ],
+  "category": "misc",
+  "result": {
+    "id": "skydock:seat",
+    "count": 1
+  }
+}

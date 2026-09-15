@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "decorations",
+  "pattern": [
+    " C ",
+    "CTC",
+    " C "
+  ],
+  "key": {
+    "C": { "item": "minecraft:copper_ingot" },
+    "T": { "item": "minecraft:torch" }
+  },
+  "result": { "id": "skydock:brass_lantern", "count": 1 }
+}

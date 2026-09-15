@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ICI",
+    "RER",
+    "ICI"
+  ],
+  "key": {
+    "C": { "item": "minecraft:copper_ingot" },
+    "I": { "item": "minecraft:iron_ingot" },
+    "R": { "item": "minecraft:redstone" },
+    "E": { "item": "skydock:engine" }
+  },
+  "result": { "id": "skydock:engine_reinforced", "count": 1 }
+}

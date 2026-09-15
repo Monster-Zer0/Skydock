@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "NAN",
+    "ETE",
+    "NAN"
+  ],
+  "key": {
+    "A": { "item": "minecraft:amethyst_shard" },
+    "E": { "item": "minecraft:ender_pearl" },
+    "N": { "item": "minecraft:netherite_ingot" },
+    "T": { "item": "skydock:engine_turbine" }
+  },
+  "result": { "id": "skydock:engine_aether", "count": 1 }
+}

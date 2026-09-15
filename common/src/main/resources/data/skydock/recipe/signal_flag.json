@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "decorations",
+  "pattern": [
+    "WW",
+    "SW",
+    "S "
+  ],
+  "key": {
+    "S": { "item": "minecraft:stick" },
+    "W": { "tag": "minecraft:wool" }
+  },
+  "result": { "id": "skydock:signal_flag", "count": 1 }
+}

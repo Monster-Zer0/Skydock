@@ -1,0 +1,5 @@
+# Skydock Blockbench sources
+
+The `.bbmodel` files in this directory are source archives for the Skydock block models. They were authored through native Blockbench MCP and imported from the corresponding Java Block/Item exports. The `.mjs` files here are MCP input specifications for authored geometry; they are not a Minecraft runtime procedural model generator. The [visual reference prompts](../design-references/prompts-v2.md) document the asset art direction. The runtime resources are imported by `tools/model-assets/import-mcp-exports.mjs`; this source archive is not a Minecraft resource path.
+
+The archive contains 18 regular authored models and 64 lift-cell connection variants. The lift cell files are `lift_cell_0.bbmodel` through `lift_cell_63.bbmodel`; their bit-mask order is east, west, up, down, south, north. Variant `lift_cell_0` is the disconnected inventory model. The connected timber railing is authored as `timber_railing_post`, `timber_railing_side`, and `timber_railing_inventory`.

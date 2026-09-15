@@ -1,0 +1,24 @@
+{
+  "key": {
+    "W": {
+      "item": "minecraft:white_wool"
+    },
+    "S": {
+      "item": "minecraft:string"
+    },
+    "G": {
+      "item": "minecraft:phantom_membrane"
+    }
+  },
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SWS",
+    "WGW",
+    "SWS"
+  ],
+  "category": "misc",
+  "result": {
+    "id": "skydock:lift_cell",
+    "count": 1
+  }
+}

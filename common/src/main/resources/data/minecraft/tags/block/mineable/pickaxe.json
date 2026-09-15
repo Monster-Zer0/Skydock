@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    "skydock:scout_dock_controller",
+    "skydock:brig_dock_controller",
+    "skydock:cruiser_dock_controller",
+    "skydock:dreadnought_dock_controller",
+    "skydock:helm",
+    "skydock:engine",
+    "skydock:engine_reinforced",
+    "skydock:engine_turbine",
+    "skydock:engine_aether",
+    "skydock:ballast",
+    "skydock:mooring_clamp",
+    "skydock:brass_lantern"
+  ]
+}

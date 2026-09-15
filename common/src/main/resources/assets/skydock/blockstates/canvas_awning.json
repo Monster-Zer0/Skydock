@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "skydock:block/canvas_awning"
+    },
+    "facing=east": {
+      "model": "skydock:block/canvas_awning",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "skydock:block/canvas_awning",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "skydock:block/canvas_awning",
+      "y": 270
+    }
+  }
+}

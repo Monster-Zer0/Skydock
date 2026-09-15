@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "skydock:lift_cell",
+    "skydock:seat",
+    "skydock:canvas_awning",
+    "skydock:timber_railing",
+    "skydock:signal_flag"
+  ]
+}

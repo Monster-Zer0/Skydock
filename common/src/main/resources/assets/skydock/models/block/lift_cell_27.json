@@ -1,0 +1,1352 @@
+{
+  "credit": "Made with Blockbench",
+  "textures": {
+    "0": "skydock:block/palette_v2/brass",
+    "3": "skydock:block/palette_v2/teal",
+    "8": "skydock:block/palette_v2/leather",
+    "9": "skydock:block/palette_v2/canvas",
+    "particle": "skydock:block/palette_v2/canvas"
+  },
+  "elements": [
+    {
+      "name": "Exterior brass suspension band",
+      "from": [
+        7.3,
+        0,
+        -0.04
+      ],
+      "to": [
+        8.7,
+        2,
+        0.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "2_Exterior brass suspension band",
+      "from": [
+        7.3,
+        2,
+        -0.04
+      ],
+      "to": [
+        8.7,
+        4,
+        0.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "3_Exterior brass suspension band",
+      "from": [
+        7.3,
+        4,
+        -0.04
+      ],
+      "to": [
+        8.7,
+        6,
+        0.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "4_Exterior brass suspension band",
+      "from": [
+        7.3,
+        6,
+        1.96
+      ],
+      "to": [
+        8.7,
+        8,
+        2.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "5_Exterior brass suspension band",
+      "from": [
+        7.3,
+        8,
+        1.96
+      ],
+      "to": [
+        8.7,
+        10,
+        2.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "6_Exterior brass suspension band",
+      "from": [
+        7.3,
+        10,
+        3.96
+      ],
+      "to": [
+        8.7,
+        12,
+        4.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "7_Exterior brass suspension band",
+      "from": [
+        7.3,
+        12,
+        5.96
+      ],
+      "to": [
+        8.7,
+        14,
+        6.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "8_Exterior brass suspension band",
+      "from": [
+        7.3,
+        14,
+        9.96
+      ],
+      "to": [
+        8.7,
+        16,
+        10.16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            2
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.2,
+            2
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            1.4,
+            0.2
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "Suspension buckle",
+      "from": [
+        6.5,
+        6.5,
+        -0.12
+      ],
+      "to": [
+        9.5,
+        9.5,
+        0.12
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            3,
+            3
+          ],
+          "texture": "#0"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.24,
+            3
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            3,
+            3
+          ],
+          "texture": "#0"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.24,
+            3
+          ],
+          "texture": "#0"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            3,
+            0.24
+          ],
+          "texture": "#0"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            3,
+            0.24
+          ],
+          "texture": "#0"
+        }
+      }
+    },
+    {
+      "name": "Envelope 1",
+      "from": [
+        0,
+        2,
+        0
+      ],
+      "to": [
+        16,
+        4,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#9"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#9"
+        }
+      }
+    },
+    {
+      "name": "Envelope 2",
+      "from": [
+        0,
+        4,
+        0
+      ],
+      "to": [
+        16,
+        6,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#9"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#9"
+        }
+      }
+    },
+    {
+      "name": "Envelope 3",
+      "from": [
+        0,
+        6,
+        2
+      ],
+      "to": [
+        16,
+        8,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            14,
+            2
+          ],
+          "texture": "#9"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            14,
+            2
+          ],
+          "texture": "#9"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            14
+          ],
+          "texture": "#9"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            14
+          ],
+          "texture": "#9"
+        }
+      }
+    },
+    {
+      "name": "Envelope 4",
+      "from": [
+        0,
+        8,
+        2
+      ],
+      "to": [
+        16,
+        10,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            14,
+            2
+          ],
+          "texture": "#9"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            14,
+            2
+          ],
+          "texture": "#9"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            14
+          ],
+          "texture": "#9"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            14
+          ],
+          "texture": "#9"
+        }
+      }
+    },
+    {
+      "name": "Envelope 5",
+      "from": [
+        0,
+        10,
+        4
+      ],
+      "to": [
+        16,
+        12,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            12,
+            2
+          ],
+          "texture": "#9"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            12,
+            2
+          ],
+          "texture": "#9"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            12
+          ],
+          "texture": "#9"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            12
+          ],
+          "texture": "#9"
+        }
+      }
+    },
+    {
+      "name": "Envelope 6",
+      "from": [
+        0,
+        12,
+        6
+      ],
+      "to": [
+        16,
+        14,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            10,
+            2
+          ],
+          "texture": "#9"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            10,
+            2
+          ],
+          "texture": "#9"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            10
+          ],
+          "texture": "#9"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            10
+          ],
+          "texture": "#9"
+        }
+      }
+    },
+    {
+      "name": "Envelope 7",
+      "from": [
+        0,
+        14,
+        10
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            6,
+            2
+          ],
+          "texture": "#9"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#9"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            6,
+            2
+          ],
+          "texture": "#9"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            6
+          ],
+          "texture": "#9"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            6
+          ],
+          "texture": "#9"
+        }
+      }
+    },
+    {
+      "name": "Envelope 0",
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        2,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#8"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#8"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#8"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#8"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#8"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#8"
+        }
+      }
+    },
+    {
+      "name": "Buckle inset",
+      "from": [
+        7,
+        7,
+        -0.16
+      ],
+      "to": [
+        9,
+        9,
+        -0.12
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            2,
+            2
+          ],
+          "texture": "#3"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            0.04,
+            2
+          ],
+          "texture": "#3"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            2,
+            2
+          ],
+          "texture": "#3"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            0.04,
+            2
+          ],
+          "texture": "#3"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            2,
+            0.04
+          ],
+          "texture": "#3"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            2,
+            0.04
+          ],
+          "texture": "#3"
+        }
+      }
+    }
+  ],
+  "parent": "block/block",
+  "gui_light": "front",
+  "display": {
+    "thirdperson_righthand": {
+      "rotation": [
+        75,
+        45,
+        0
+      ],
+      "translation": [
+        0,
+        2.5,
+        0
+      ],
+      "scale": [
+        0.375,
+        0.375,
+        0.375
+      ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [
+        75,
+        45,
+        0
+      ],
+      "translation": [
+        0,
+        2.5,
+        0
+      ],
+      "scale": [
+        0.375,
+        0.375,
+        0.375
+      ]
+    },
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        45,
+        0
+      ],
+      "scale": [
+        0.4,
+        0.4,
+        0.4
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        0,
+        225,
+        0
+      ],
+      "scale": [
+        0.4,
+        0.4,
+        0.4
+      ]
+    },
+    "gui": {
+      "rotation": [
+        30,
+        225,
+        0
+      ],
+      "scale": [
+        0.625,
+        0.625,
+        0.625
+      ]
+    },
+    "ground": {
+      "translation": [
+        0,
+        3,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        180,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    }
+  }
+}

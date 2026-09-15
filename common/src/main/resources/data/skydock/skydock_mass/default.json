@@ -1,0 +1,23 @@
+{
+  "blocks_per_cell": 128,
+  "default_mass": 10,
+  "lift_per_cell": 1000,
+  "dock_caps": {
+    "scout": 2048,
+    "brig": 6144,
+    "dreadnought": 24576,
+    "cruiser": 12288
+  },
+  "blocks": {
+    "skydock:helm": 20,
+    "skydock:lift_cell": 5,
+    "skydock:engine": 80,
+    "skydock:engine_reinforced": 100,
+    "skydock:engine_turbine": 140,
+    "skydock:engine_aether": 180,
+    "minecraft:iron_block": 80,
+    "skydock:ballast": 250,
+    "minecraft:obsidian": 50,
+    "minecraft:gold_block": 190
+  }
+}

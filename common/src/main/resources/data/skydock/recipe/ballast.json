@@ -1,0 +1,21 @@
+{
+  "key": {
+    "S": {
+      "item": "minecraft:polished_deepslate"
+    },
+    "I": {
+      "item": "minecraft:iron_nugget"
+    }
+  },
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "III",
+    "ISI",
+    "III"
+  ],
+  "category": "misc",
+  "result": {
+    "id": "skydock:ballast",
+    "count": 1
+  }
+}

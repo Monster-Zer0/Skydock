@@ -1,0 +1,24 @@
+{
+  "key": {
+    "S": {
+      "item": "minecraft:stick"
+    },
+    "P": {
+      "item": "minecraft:oak_planks"
+    },
+    "C": {
+      "item": "minecraft:compass"
+    }
+  },
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " S ",
+    "PCP",
+    " P "
+  ],
+  "category": "misc",
+  "result": {
+    "id": "skydock:helm",
+    "count": 1
+  }
+}

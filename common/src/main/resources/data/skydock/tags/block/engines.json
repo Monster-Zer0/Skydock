@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "skydock:engine",
+    "skydock:engine_reinforced",
+    "skydock:engine_turbine",
+    "skydock:engine_aether"
+  ]
+}

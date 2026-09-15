@@ -1,0 +1,27 @@
+{
+  "key": {
+    "D": {
+      "item": "minecraft:diamond_block"
+    },
+    "E": {
+      "item": "skydock:cruiser_dock_controller"
+    },
+    "N": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "S": {
+      "item": "minecraft:nether_star"
+    }
+  },
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "NSN",
+    "DED",
+    "NSN"
+  ],
+  "category": "misc",
+  "result": {
+    "id": "skydock:dreadnought_dock_controller",
+    "count": 1
+  }
+}

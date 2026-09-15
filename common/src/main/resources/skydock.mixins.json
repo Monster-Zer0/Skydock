@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "dev.skydock.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "minVersion": "0.8",
+  "mixins": ["EntityCollisionMixin", "PlayerEdgeMixin", "PlayerMenuMixin", "ServerMenuMixin", "ServerMenuPacketMixin", "ServerFlightMixin"],
+  "client": ["ClientInteractionMixin", "KeyboardInputMixin", "LocalPlayerCameraMixin", "LocalPlayerMovementMixin"],
+  "injectors": {"defaultRequire": 1}
+}

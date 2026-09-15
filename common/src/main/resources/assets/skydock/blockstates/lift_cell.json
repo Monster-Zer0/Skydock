@@ -1,0 +1,196 @@
+{
+  "variants": {
+    "east=false,west=false,up=false,down=false,south=false,north=false": {
+      "model": "skydock:block/lift_cell_0"
+    },
+    "east=true,west=false,up=false,down=false,south=false,north=false": {
+      "model": "skydock:block/lift_cell_1"
+    },
+    "east=false,west=true,up=false,down=false,south=false,north=false": {
+      "model": "skydock:block/lift_cell_2"
+    },
+    "east=true,west=true,up=false,down=false,south=false,north=false": {
+      "model": "skydock:block/lift_cell_3"
+    },
+    "east=false,west=false,up=true,down=false,south=false,north=false": {
+      "model": "skydock:block/lift_cell_4"
+    },
+    "east=true,west=false,up=true,down=false,south=false,north=false": {
+      "model": "skydock:block/lift_cell_5"
+    },
+    "east=false,west=true,up=true,down=false,south=false,north=false": {
+      "model": "skydock:block/lift_cell_6"
+    },
+    "east=true,west=true,up=true,down=false,south=false,north=false": {
+      "model": "skydock:block/lift_cell_7"
+    },
+    "east=false,west=false,up=false,down=true,south=false,north=false": {
+      "model": "skydock:block/lift_cell_8"
+    },
+    "east=true,west=false,up=false,down=true,south=false,north=false": {
+      "model": "skydock:block/lift_cell_9"
+    },
+    "east=false,west=true,up=false,down=true,south=false,north=false": {
+      "model": "skydock:block/lift_cell_10"
+    },
+    "east=true,west=true,up=false,down=true,south=false,north=false": {
+      "model": "skydock:block/lift_cell_11"
+    },
+    "east=false,west=false,up=true,down=true,south=false,north=false": {
+      "model": "skydock:block/lift_cell_12"
+    },
+    "east=true,west=false,up=true,down=true,south=false,north=false": {
+      "model": "skydock:block/lift_cell_13"
+    },
+    "east=false,west=true,up=true,down=true,south=false,north=false": {
+      "model": "skydock:block/lift_cell_14"
+    },
+    "east=true,west=true,up=true,down=true,south=false,north=false": {
+      "model": "skydock:block/lift_cell_15"
+    },
+    "east=false,west=false,up=false,down=false,south=true,north=false": {
+      "model": "skydock:block/lift_cell_16"
+    },
+    "east=true,west=false,up=false,down=false,south=true,north=false": {
+      "model": "skydock:block/lift_cell_17"
+    },
+    "east=false,west=true,up=false,down=false,south=true,north=false": {
+      "model": "skydock:block/lift_cell_18"
+    },
+    "east=true,west=true,up=false,down=false,south=true,north=false": {
+      "model": "skydock:block/lift_cell_19"
+    },
+    "east=false,west=false,up=true,down=false,south=true,north=false": {
+      "model": "skydock:block/lift_cell_20"
+    },
+    "east=true,west=false,up=true,down=false,south=true,north=false": {
+      "model": "skydock:block/lift_cell_21"
+    },
+    "east=false,west=true,up=true,down=false,south=true,north=false": {
+      "model": "skydock:block/lift_cell_22"
+    },
+    "east=true,west=true,up=true,down=false,south=true,north=false": {
+      "model": "skydock:block/lift_cell_23"
+    },
+    "east=false,west=false,up=false,down=true,south=true,north=false": {
+      "model": "skydock:block/lift_cell_24"
+    },
+    "east=true,west=false,up=false,down=true,south=true,north=false": {
+      "model": "skydock:block/lift_cell_25"
+    },
+    "east=false,west=true,up=false,down=true,south=true,north=false": {
+      "model": "skydock:block/lift_cell_26"
+    },
+    "east=true,west=true,up=false,down=true,south=true,north=false": {
+      "model": "skydock:block/lift_cell_27"
+    },
+    "east=false,west=false,up=true,down=true,south=true,north=false": {
+      "model": "skydock:block/lift_cell_28"
+    },
+    "east=true,west=false,up=true,down=true,south=true,north=false": {
+      "model": "skydock:block/lift_cell_29"
+    },
+    "east=false,west=true,up=true,down=true,south=true,north=false": {
+      "model": "skydock:block/lift_cell_30"
+    },
+    "east=true,west=true,up=true,down=true,south=true,north=false": {
+      "model": "skydock:block/lift_cell_31"
+    },
+    "east=false,west=false,up=false,down=false,south=false,north=true": {
+      "model": "skydock:block/lift_cell_32"
+    },
+    "east=true,west=false,up=false,down=false,south=false,north=true": {
+      "model": "skydock:block/lift_cell_33"
+    },
+    "east=false,west=true,up=false,down=false,south=false,north=true": {
+      "model": "skydock:block/lift_cell_34"
+    },
+    "east=true,west=true,up=false,down=false,south=false,north=true": {
+      "model": "skydock:block/lift_cell_35"
+    },
+    "east=false,west=false,up=true,down=false,south=false,north=true": {
+      "model": "skydock:block/lift_cell_36"
+    },
+    "east=true,west=false,up=true,down=false,south=false,north=true": {
+      "model": "skydock:block/lift_cell_37"
+    },
+    "east=false,west=true,up=true,down=false,south=false,north=true": {
+      "model": "skydock:block/lift_cell_38"
+    },
+    "east=true,west=true,up=true,down=false,south=false,north=true": {
+      "model": "skydock:block/lift_cell_39"
+    },
+    "east=false,west=false,up=false,down=true,south=false,north=true": {
+      "model": "skydock:block/lift_cell_40"
+    },
+    "east=true,west=false,up=false,down=true,south=false,north=true": {
+      "model": "skydock:block/lift_cell_41"
+    },
+    "east=false,west=true,up=false,down=true,south=false,north=true": {
+      "model": "skydock:block/lift_cell_42"
+    },
+    "east=true,west=true,up=false,down=true,south=false,north=true": {
+      "model": "skydock:block/lift_cell_43"
+    },
+    "east=false,west=false,up=true,down=true,south=false,north=true": {
+      "model": "skydock:block/lift_cell_44"
+    },
+    "east=true,west=false,up=true,down=true,south=false,north=true": {
+      "model": "skydock:block/lift_cell_45"
+    },
+    "east=false,west=true,up=true,down=true,south=false,north=true": {
+      "model": "skydock:block/lift_cell_46"
+    },
+    "east=true,west=true,up=true,down=true,south=false,north=true": {
+      "model": "skydock:block/lift_cell_47"
+    },
+    "east=false,west=false,up=false,down=false,south=true,north=true": {
+      "model": "skydock:block/lift_cell_48"
+    },
+    "east=true,west=false,up=false,down=false,south=true,north=true": {
+      "model": "skydock:block/lift_cell_49"
+    },
+    "east=false,west=true,up=false,down=false,south=true,north=true": {
+      "model": "skydock:block/lift_cell_50"
+    },
+    "east=true,west=true,up=false,down=false,south=true,north=true": {
+      "model": "skydock:block/lift_cell_51"
+    },
+    "east=false,west=false,up=true,down=false,south=true,north=true": {
+      "model": "skydock:block/lift_cell_52"
+    },
+    "east=true,west=false,up=true,down=false,south=true,north=true": {
+      "model": "skydock:block/lift_cell_53"
+    },
+    "east=false,west=true,up=true,down=false,south=true,north=true": {
+      "model": "skydock:block/lift_cell_54"
+    },
+    "east=true,west=true,up=true,down=false,south=true,north=true": {
+      "model": "skydock:block/lift_cell_55"
+    },
+    "east=false,west=false,up=false,down=true,south=true,north=true": {
+      "model": "skydock:block/lift_cell_56"
+    },
+    "east=true,west=false,up=false,down=true,south=true,north=true": {
+      "model": "skydock:block/lift_cell_57"
+    },
+    "east=false,west=true,up=false,down=true,south=true,north=true": {
+      "model": "skydock:block/lift_cell_58"
+    },
+    "east=true,west=true,up=false,down=true,south=true,north=true": {
+      "model": "skydock:block/lift_cell_59"
+    },
+    "east=false,west=false,up=true,down=true,south=true,north=true": {
+      "model": "skydock:block/lift_cell_60"
+    },
+    "east=true,west=false,up=true,down=true,south=true,north=true": {
+      "model": "skydock:block/lift_cell_61"
+    },
+    "east=false,west=true,up=true,down=true,south=true,north=true": {
+      "model": "skydock:block/lift_cell_62"
+    },
+    "east=true,west=true,up=true,down=true,south=true,north=true": {
+      "model": "skydock:block/lift_cell_63"
+    }
+  }
+}

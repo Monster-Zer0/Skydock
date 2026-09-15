@@ -1,0 +1,21 @@
+{
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "C": {
+      "item": "minecraft:chain"
+    }
+  },
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " I ",
+    "ICI",
+    " I "
+  ],
+  "category": "misc",
+  "result": {
+    "id": "skydock:mooring_clamp",
+    "count": 1
+  }
+}

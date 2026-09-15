@@ -1,0 +1,9 @@
+.gradle/
+.architectury-transformer/
+**/build/
+run/
+**/run/
+.idea/
+*.iml
+.DS_Store
+logs/

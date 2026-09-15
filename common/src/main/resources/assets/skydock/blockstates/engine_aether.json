@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "skydock:block/engine_aether"
+    },
+    "facing=east": {
+      "model": "skydock:block/engine_aether",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "skydock:block/engine_aether",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "skydock:block/engine_aether",
+      "y": 270
+    }
+  }
+}

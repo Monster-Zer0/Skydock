@@ -1,0 +1,27 @@
+{
+  "key": {
+    "F": {
+      "item": "minecraft:furnace"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "R": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ICI",
+    "RFR",
+    "ICI"
+  ],
+  "category": "misc",
+  "result": {
+    "id": "skydock:engine",
+    "count": 1
+  }
+}

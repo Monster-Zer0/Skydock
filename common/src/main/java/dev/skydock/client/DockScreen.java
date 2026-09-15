@@ -1,0 +1,437 @@
+package dev.skydock.client;
+
+import dev.skydock.menu.DockMenu;
+import dev.skydock.network.DockNetwork;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractButton;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+public final class DockScreen extends AbstractContainerScreen<DockMenu> {
+    private static final int CANVAS = 0xFFE7D6AA;
+    private static final int CANVAS_DARK = 0xFFD6BF8A;
+    private static final int TIMBER = 0xFF8A5B32;
+    private static final int BRASS = 0xFFC69852;
+    private static final int INK = 0xFF132C31;
+    private static final int TEAL = 0xFF4FA89C;
+    private static final int PALE = 0xFFF6EED8;
+    private static final int MISSING = 0xFF9D3F38;
+    private static final int MUTED = 0xFF536A67;
+
+    private enum Page { DESIGNS, MANUAL }
+
+    private final DockPreviewRenderer preview = new DockPreviewRenderer();
+    private final List<ShipwrightButton> patternButtons = new ArrayList<>();
+    private Page page = Page.DESIGNS;
+    private ShipwrightButton designsTab, manualTab, decorations, assemble, cancel, inspect, launch, redock;
+    private DockView.Snapshot snapshot;
+    private int seenRevision = Integer.MIN_VALUE;
+    private int previewX, previewY, previewW, previewH;
+    private int costsX, costsY, costsW, costsH, costScroll;
+    private int requestTicks;
+    private boolean waiting;
+
+    public DockScreen(DockMenu menu, Inventory inventory, Component title) {
+        super(menu, inventory, title);
+        imageWidth = 588;
+        imageHeight = 326;
+        titleLabelX = inventoryLabelX = -10000;
+    }
+
+    @Override
+    protected void init() {
+        imageWidth = Math.max(286, Math.min(588, width - 8));
+        imageHeight = Math.max(190, Math.min(326, height - 8));
+        super.init();
+        patternButtons.clear();
+        int tabY = topPos + 27;
+        designsTab = addShipButton(leftPos + 9, tabY, 76, 18, "Designs", () -> page = Page.DESIGNS);
+        manualTab = addShipButton(leftPos + 87, tabY, 70, 18, "Manual", () -> page = Page.MANUAL);
+        for (int i = 0; i < 3; i++) {
+            final int button = 10 + i;
+            patternButtons.add(addShipButton(0, 0, 10, 10, "—", () -> menuButton(button)));
+        }
+        decorations = addShipButton(0, 0, 10, 10, "Decorations", () -> menuButton(5));
+        assemble = addShipButton(0, 0, 10, 10, "Build ship", () -> menuButton(3));
+        cancel = addShipButton(0, 0, 10, 10, "Cancel build", () -> menuButton(4));
+        inspect = addShipButton(0, 0, 10, 10, "Inspect ship", () -> menuButton(0));
+        launch = addShipButton(0, 0, 10, 10, "Launch ship", () -> menuButton(1));
+        redock = addShipButton(0, 0, 10, 10, "Redock ship", () -> menuButton(2));
+        layoutButtons();
+        DockNetwork.request(menu.containerId, menu.pos, -1);
+        requestTicks = 0;
+    }
+
+    private ShipwrightButton addShipButton(int x, int y, int w, int h, String label, Runnable action) {
+        return addRenderableWidget(new ShipwrightButton(x, y, w, h, Component.literal(label), action));
+    }
+
+    private void menuButton(int id) {
+        if (minecraft.gameMode == null) return;
+        waiting = true;
+        minecraft.gameMode.handleInventoryButtonClick(menu.containerId, id);
+    }
+
+    private void layoutButtons() {
+        int bodyY = topPos + 51;
+        int footerY = topPos + imageHeight - 29;
+        boolean wide = imageWidth >= 520 && imageHeight >= 260;
+        if (wide) {
+            int leftX = leftPos + 9;
+            for (int i = 0; i < patternButtons.size(); i++) patternButtons.get(i).setBounds(leftX, bodyY + 15 + i * 39, 114, 34);
+            decorations.setBounds(leftX, bodyY + 136, 114, 20);
+        } else {
+            int gap = 3, usable = imageWidth - 18, buttonW = (usable - gap * 3) / 4;
+            for (int i = 0; i < patternButtons.size(); i++) patternButtons.get(i).setBounds(leftPos + 9 + i * (buttonW + gap), bodyY, buttonW, 20);
+            decorations.setBounds(leftPos + 9 + 3 * (buttonW + gap), bodyY, buttonW, 20);
+        }
+        int actionW = Math.min(102, Math.max(74, (imageWidth - 28) / 4));
+        cancel.setBounds(leftPos + imageWidth - 9 - actionW, footerY + 3, actionW, 20);
+        assemble.setBounds(cancel.getX() - actionW - 4, footerY + 3, actionW, 20);
+        int manualW = Math.max(70, (imageWidth - 26) / 3);
+        inspect.setBounds(leftPos + 9, footerY + 3, manualW, 20);
+        launch.setBounds(leftPos + 13 + manualW, footerY + 3, manualW, 20);
+        redock.setBounds(leftPos + 17 + manualW * 2, footerY + 3, imageWidth - 26 - manualW * 2, 20);
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        if (++requestTicks >= (snapshot != null && snapshot.active() ? 10 : 60)) {
+            requestTicks = 0;
+            DockNetwork.request(menu.containerId, menu.pos, snapshot == null ? -1 : snapshot.revision());
+        }
+    }
+
+    private void refreshSnapshot() {
+        DockView.Snapshot latest = DockView.get(menu.containerId, menu.pos);
+        if (latest == null) return;
+        boolean received = latest != snapshot;
+        snapshot = latest;
+        if (received) waiting = false;
+        if (seenRevision != snapshot.revision()) {
+            seenRevision = snapshot.revision();
+            costScroll = Mth.clamp(costScroll, 0, Math.max(0, snapshot.costs().size() - visibleCostRows()));
+        }
+    }
+
+    private void updateWidgets() {
+        layoutButtons();
+        boolean designs = page == Page.DESIGNS;
+        boolean complete = snapshot != null && snapshot.complete();
+        designsTab.selected = designs;
+        manualTab.selected = !designs;
+        for (int i = 0; i < patternButtons.size(); i++) {
+            ShipwrightButton button = patternButtons.get(i);
+            button.visible = designs;
+            boolean exists = snapshot != null && i < snapshot.patterns().size();
+            button.active = exists && !waiting && !snapshot.active() && !complete;
+            if (exists) {
+                DockView.Pattern pattern = snapshot.patterns().get(i);
+                button.setMessage(Component.literal(pattern.name()));
+                button.selected = snapshot.selected().equals(pattern.id());
+            } else {
+                button.setMessage(Component.literal("—"));
+                button.selected = false;
+            }
+        }
+        decorations.visible = designs;
+        decorations.active = snapshot != null && !waiting && !snapshot.active() && !complete;
+        decorations.selected = snapshot != null && snapshot.decorations();
+        decorations.setMessage(Component.literal(snapshot != null && snapshot.decorations() ? "Decorations: on" : "Decorations: off"));
+        assemble.visible = designs && (snapshot == null || (!snapshot.active() && !complete));
+        cancel.visible = designs && snapshot != null && snapshot.active();
+        assemble.active = snapshot != null && snapshot.canAssemble() && !waiting;
+        cancel.active = snapshot != null && !waiting;
+        inspect.visible = redock.visible = !designs;
+        launch.visible = !designs || complete;
+        if (designs && complete) launch.setBounds(assemble.getX(), assemble.getY(), assemble.getWidth(), assemble.getHeight());
+        inspect.active = redock.active = snapshot != null && !waiting && !snapshot.active();
+        launch.active = snapshot != null && !waiting && !snapshot.active();
+    }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        refreshSnapshot();
+        updateWidgets();
+        super.render(graphics, mouseX, mouseY, partialTick);
+        if (snapshot != null && page == Page.DESIGNS && in(mouseX, mouseY, costsX, costsY, costsW, costsH)) {
+            int row = costScroll + (mouseY - costsY) / 20;
+            if (row >= 0 && row < snapshot.costs().size()) {
+                DockView.Cost cost = snapshot.costs().get(row);
+                graphics.renderTooltip(font, new ItemStack(cost.item()), mouseX, mouseY);
+            }
+        }
+        renderTooltip(graphics, mouseX, mouseY);
+    }
+
+    @Override
+    protected void renderBg(GuiGraphics graphics, float delta, int mouseX, int mouseY) {
+        int right = leftPos + imageWidth, bottom = topPos + imageHeight;
+        graphics.fill(leftPos - 2, topPos - 2, right + 2, bottom + 2, 0xDD0B181B);
+        graphics.fill(leftPos, topPos, right, bottom, CANVAS);
+        graphics.fill(leftPos, topPos, right, topPos + 24, INK);
+        graphics.fill(leftPos, topPos + 23, right, topPos + 26, BRASS);
+        graphics.fill(leftPos + 6, topPos + 48, right - 6, bottom - 32, CANVAS_DARK);
+        graphics.drawString(font, "SHIPWRIGHT'S DOCK", leftPos + 10, topPos + 8, PALE, false);
+        String berth = snapshot == null ? "AWAITING HARBOR RECORD" : snapshot.tier().toUpperCase(Locale.ROOT) + " BERTH";
+        berth = font.plainSubstrByWidth(berth, Math.max(58, imageWidth - 148));
+        graphics.drawString(font, berth, right - 10 - font.width(berth), topPos + 8, TEAL, false);
+        if (page == Page.DESIGNS) renderDesigns(graphics);
+        else renderManual(graphics);
+    }
+
+    private void renderDesigns(GuiGraphics graphics) {
+        int bodyY = topPos + 51, bodyBottom = topPos + imageHeight - 27;
+        boolean wide = imageWidth >= 520 && imageHeight >= 260;
+        int leftW = wide ? 120 : 0;
+        int rightW = wide ? 151 : Math.max(108, (imageWidth - 18) * 37 / 100);
+        previewX = leftPos + 9 + leftW;
+        previewY = bodyY + (wide ? 0 : 25);
+        previewW = imageWidth - 18 - leftW - rightW - 5;
+        previewH = bodyBottom - previewY;
+        costsX = previewX + previewW + 6;
+        int rightTop = bodyY + (wide ? 0 : 25);
+        costsY = rightTop + (wide ? 82 : 67);
+        costsW = rightW - 1;
+        costsH = Math.max(20, bodyBottom - costsY);
+
+        if (wide) {
+            graphics.drawString(font, "SHIP PATTERNS", leftPos + 12, bodyY + 3, INK, false);
+            if (snapshot != null) {
+                DockView.Pattern selected = snapshot.patterns().stream().filter(p -> p.id().equals(snapshot.selected())).findFirst().orElse(null);
+                if (selected != null) drawWrapped(graphics, selected.description(), leftPos + 12, bodyY + 162, 110, MUTED, 3);
+            }
+        }
+        panel(graphics, previewX, previewY, previewW, previewH, INK);
+        drawPreviewGrid(graphics, previewX, previewY, previewW, previewH);
+        if (snapshot == null) {
+            center(graphics, "Reading the shipwright's ledger…", previewX, previewY + previewH / 2, previewW, PALE);
+        } else if (snapshot.preview().isEmpty()) {
+            center(graphics, "No preview supplied", previewX, previewY + previewH / 2, previewW, PALE);
+        } else {
+            preview.render(graphics, previewX, previewY, previewW, previewH, snapshot.preview());
+        }
+        String help = font.plainSubstrByWidth("DRAG ROTATE  ·  WHEEL ZOOM  ·  R RESET", Math.max(10, previewW - 14));
+        graphics.drawString(font, help, previewX + 7, previewY + previewH - 12, 0xFF9CCBC4, false);
+
+        int rx = costsX, ry = rightTop;
+        graphics.drawString(font, "VESSEL FIGURES", rx + 3, ry + 3, INK, false);
+        if (snapshot != null) renderStats(graphics, rx + 3, ry + (wide ? 16 : 13), costsW - 6, snapshot.stats());
+        if (wide) graphics.drawString(font, "MATERIALS REMAINING", rx + 3, costsY - 12, INK, false);
+        graphics.fill(costsX, costsY, costsX + costsW, costsY + costsH, 0xCCF6EED8);
+        renderCosts(graphics);
+        renderFooterStatus(graphics);
+    }
+
+    private void renderStats(GuiGraphics graphics, int x, int y, int width, DockView.Stats stats) {
+        int gutter = 6;
+        int columnWidth = (width - gutter) / 2;
+        int rightX = x + columnWidth + gutter;
+        int rightWidth = width - columnWidth - gutter;
+        stat(graphics, "Mass", format(stats.mass()), x, y, columnWidth);
+        stat(graphics, "Lift", format(stats.lift()), rightX, y, rightWidth);
+        stat(graphics, "Power", format(stats.power()), x, y + 11, columnWidth);
+        stat(graphics, "Speed", format(stats.speed() * 20.0) + "/s", rightX, y + 11, rightWidth);
+        stat(graphics, "Struct.", Integer.toString(stats.structuralBlocks()), x, y + 22, columnWidth);
+        stat(graphics, "Blocks", Integer.toString(stats.blocks()), rightX, y + 22, rightWidth);
+        stat(graphics, "Cells", Integer.toString(stats.cells()), x, y + 33, columnWidth);
+        stat(graphics, "Engines", Integer.toString(stats.engines()), rightX, y + 33, rightWidth);
+        graphics.drawString(font, font.plainSubstrByWidth(stats.width() + " × " + stats.height() + " × " + stats.length() + " blocks", width), x, y + 44, INK, false);
+    }
+
+    private void stat(GuiGraphics graphics, String label, String value, int x, int y, int width) {
+        int valueWidth = font.width(value);
+        int labelWidth = Math.max(0, width - valueWidth - 2);
+        String shownLabel = font.plainSubstrByWidth(label, labelWidth);
+        if (!shownLabel.isEmpty()) graphics.drawString(font, shownLabel, x, y, MUTED, false);
+        graphics.drawString(font, value, x + width - valueWidth, y, INK, false);
+    }
+
+    private void renderCosts(GuiGraphics graphics) {
+        if (snapshot == null || snapshot.costs().isEmpty()) {
+            center(graphics, "No materials listed", costsX, costsY + 8, costsW, MUTED);
+            return;
+        }
+        int rows = visibleCostRows();
+        for (int shown = 0; shown < rows; shown++) {
+            int index = costScroll + shown;
+            if (index >= snapshot.costs().size()) break;
+            DockView.Cost cost = snapshot.costs().get(index);
+            int y = costsY + shown * 20 + 2;
+            ItemStack stack = new ItemStack(cost.item());
+            graphics.renderFakeItem(stack, costsX + 3, y);
+            int color = cost.missing() ? MISSING : INK;
+            String count = cost.available() + " / " + cost.required();
+            graphics.drawString(font, count, costsX + 23, y + 1, color, false);
+            String clipped = font.plainSubstrByWidth(stack.getHoverName().getString(), costsW - 28);
+            graphics.drawString(font, clipped, costsX + 23, y + 10, MUTED, false);
+            if (cost.missing()) graphics.fill(costsX, y + 17, costsX + costsW, y + 19, 0x66A33A32);
+        }
+        if (snapshot.costs().size() > rows) {
+            int barH = Math.max(8, costsH * rows / snapshot.costs().size());
+            int barY = costsY + (costsH - barH) * costScroll / Math.max(1, snapshot.costs().size() - rows);
+            graphics.fill(costsX + costsW - 2, barY, costsX + costsW, barY + barH, TEAL);
+        }
+    }
+
+    private int visibleCostRows() { return Math.max(1, costsH / 20); }
+
+    private void renderFooterStatus(GuiGraphics graphics) {
+        int y = topPos + imageHeight - 25;
+        int statusRight = assemble.getX() - 6;
+        String status = snapshot == null ? "Contacting dock…" : snapshot.status();
+        if (waiting) status = "Updating plan…";
+        if (snapshot != null && snapshot.active() && snapshot.total() > 0)
+            status += "  ·  " + snapshot.progress() + " / " + snapshot.total();
+        graphics.drawString(font, font.plainSubstrByWidth(status, Math.max(40, statusRight - leftPos - 14)), leftPos + 10, y + 8, INK, false);
+        if (snapshot != null && snapshot.total() > 0) {
+            int barX = leftPos + 10, barY = y + 1, barW = Math.max(30, statusRight - barX);
+            graphics.fill(barX, barY, barX + barW, barY + 4, 0x55213234);
+            float fraction = snapshot.complete() ? 1.0F : Mth.clamp(snapshot.progress() / (float) snapshot.total(), 0, 1);
+            graphics.fill(barX, barY, barX + Math.round(barW * fraction), barY + 4, TEAL);
+        }
+    }
+
+    private void renderManual(GuiGraphics graphics) {
+        int x = leftPos + 16, y = topPos + 58;
+        graphics.enableScissor(leftPos + 7, topPos + 49, leftPos + imageWidth - 7, topPos + imageHeight - 32);
+        graphics.drawString(font, "OPERATING MANUAL", x, y, INK, false);
+        y += 18;
+        y = paragraph(graphics, "Inspect asks the dock to verify the current berth and report its exact state.", x, y, imageWidth - 32);
+        y = paragraph(graphics, "Launch transfers an assembled ship out of the berth. Keep the envelope clear and review the live figures first.", x, y + 7, imageWidth - 32);
+        y = paragraph(graphics, "Redock restores the nearest permitted ship to this berth for repair or expansion.", x, y + 7, imageWidth - 32);
+        y += 11;
+        graphics.fill(x, y, leftPos + imageWidth - 16, y + 1, BRASS);
+        y += 10;
+        graphics.drawString(font, "LIVE DOCK STATUS", x, y, INK, false);
+        y += 14;
+        boolean complete = snapshot != null && snapshot.complete();
+        boolean hullPresent = complete || snapshot != null && snapshot.manualHull();
+        String status = snapshot == null ? "Waiting for the server ledger." : complete ? "Assembled ship in berth. Inspect it or launch when ready."
+                : snapshot.manualHull() ? "Manual ship in berth. Inspect it before launch." : snapshot.status();
+        drawWrapped(graphics, status, x, y, imageWidth - 32, snapshot != null && (snapshot.spaceClear() || hullPresent) ? MUTED : MISSING, 3);
+        if (snapshot != null) {
+            String berthState = complete ? "Assembled ship in berth" : snapshot.manualHull() ? "Manual ship in berth"
+                    : snapshot.spaceClear() ? "Berth envelope clear" : "Berth envelope obstructed";
+            graphics.drawString(font, berthState, x, y + 34, snapshot.spaceClear() || hullPresent ? TEAL : MISSING, false);
+        }
+        graphics.disableScissor();
+    }
+
+    private int paragraph(GuiGraphics graphics, String text, int x, int y, int width) {
+        List<FormattedCharSequence> lines = font.split(Component.literal(text), width);
+        for (FormattedCharSequence line : lines) { graphics.drawString(font, line, x, y, MUTED, false); y += 10; }
+        return y;
+    }
+
+    private void drawWrapped(GuiGraphics graphics, String text, int x, int y, int width, int color, int maxLines) {
+        List<FormattedCharSequence> lines = font.split(Component.literal(text), width);
+        for (int i = 0; i < Math.min(maxLines, lines.size()); i++) graphics.drawString(font, lines.get(i), x, y + i * 10, color, false);
+    }
+
+    private void drawPreviewGrid(GuiGraphics graphics, int x, int y, int w, int h) {
+        int horizon = y + h * 2 / 3;
+        graphics.fill(x + 1, horizon, x + w - 1, y + h - 1, 0xFF19383C);
+        for (int gx = x + 12; gx < x + w; gx += 18) graphics.fill(gx, horizon, gx + 1, y + h - 1, 0x224FA89C);
+        for (int gy = horizon + 12; gy < y + h; gy += 12) graphics.fill(x + 1, gy, x + w - 1, gy + 1, 0x224FA89C);
+        graphics.fill(x + 1, horizon, x + w - 1, horizon + 1, 0x664FA89C);
+    }
+
+    private void panel(GuiGraphics graphics, int x, int y, int w, int h, int border) {
+        graphics.fill(x - 1, y - 1, x + w + 1, y + h + 1, border);
+        graphics.fill(x, y, x + w, y + h, 0xFF17353A);
+    }
+
+    private void center(GuiGraphics graphics, String text, int x, int y, int width, int color) {
+        graphics.drawString(font, font.plainSubstrByWidth(text, width - 6), x + 3, y, color, false);
+    }
+
+    private static String format(double value) {
+        if (!Double.isFinite(value)) return "—";
+        if (Math.abs(value) >= 1000) return String.format(Locale.ROOT, "%.1fk", value / 1000.0);
+        return String.format(Locale.ROOT, value == Math.rint(value) ? "%.0f" : "%.1f", value);
+    }
+
+    @Override protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {}
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+        if (page == Page.DESIGNS && button == 0 && in(mouseX, mouseY, previewX, previewY, previewW, previewH)) {
+            preview.drag(dx, dy);
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
+        if (page == Page.DESIGNS && in(mouseX, mouseY, previewX, previewY, previewW, previewH)) {
+            preview.zoom(vertical);
+            return true;
+        }
+        if (page == Page.DESIGNS && snapshot != null && in(mouseX, mouseY, costsX, costsY, costsW, costsH)) {
+            int max = Math.max(0, snapshot.costs().size() - visibleCostRows());
+            costScroll = Mth.clamp(costScroll - (int) Math.signum(vertical), 0, max);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (page == Page.DESIGNS && keyCode == 82) {
+            preview.reset();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public void removed() {
+        preview.close();
+        DockView.remove(menu.containerId, menu.pos);
+        super.removed();
+    }
+
+    private static boolean in(double mouseX, double mouseY, int x, int y, int w, int h) {
+        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+    }
+
+    private static final class ShipwrightButton extends AbstractButton {
+        private final Runnable action;
+        private boolean selected;
+
+        private ShipwrightButton(int x, int y, int width, int height, Component label, Runnable action) {
+            super(x, y, width, height, label);
+            this.action = action;
+        }
+
+        void setBounds(int x, int y, int width, int height) {
+            setX(x); setY(y); setWidth(width); setHeight(height);
+        }
+
+        @Override public void onPress() { action.run(); }
+
+        @Override
+        protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+            int fill = !active ? 0x776D756E : selected ? TEAL : isHoveredOrFocused() ? BRASS : TIMBER;
+            int border = selected ? PALE : INK;
+            graphics.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), border);
+            graphics.fill(getX() + 1, getY() + 1, getX() + getWidth() - 1, getY() + getHeight() - 1, fill);
+            renderScrollingString(graphics, Minecraft.getInstance().font, 3, active ? PALE : 0xFFB8B4A8);
+        }
+
+        @Override protected void updateWidgetNarration(NarrationElementOutput output) { defaultButtonNarrationText(output); }
+    }
+}

@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:scaffolding",
+    "skydock:scout_dock_controller",
+    "skydock:brig_dock_controller",
+    "skydock:cruiser_dock_controller",
+    "skydock:dreadnought_dock_controller"
+  ]
+}

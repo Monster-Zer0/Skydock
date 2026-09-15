@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " B ",
+    "DED",
+    " B "
+  ],
+  "key": {
+    "B": { "item": "minecraft:blaze_rod" },
+    "D": { "item": "minecraft:diamond" },
+    "E": { "item": "skydock:engine_reinforced" }
+  },
+  "result": { "id": "skydock:engine_turbine", "count": 1 }
+}

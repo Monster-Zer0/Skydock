@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "decorations",
+  "pattern": [
+    "WWW",
+    "SSS"
+  ],
+  "key": {
+    "S": { "item": "minecraft:stick" },
+    "W": { "tag": "minecraft:wool" }
+  },
+  "result": { "id": "skydock:canvas_awning", "count": 2 }
+}
