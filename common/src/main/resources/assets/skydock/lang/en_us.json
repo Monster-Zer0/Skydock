@@ -2,6 +2,8 @@
   "itemGroup.skydock": "Skydock",
   "key.skydock.release": "Release helm / leave seat",
   "key.skydock.cruise": "Toggle cruise control",
+  "key.skydock.zoom_in": "Ship camera zoom in",
+  "key.skydock.zoom_out": "Ship camera zoom out",
   "key.categories.skydock": "Skydock",
   "message.skydock.helm_engaged": "Helm engaged: %s/%s thrust, %s/%s turn, %s/%s altitude. %s toggles cruise; %s releases the helm. Engines need fuel.",
   "message.skydock.helm_released_cruise": "Helm released. Cruise is holding speed; press %s aboard to disengage.",
@@ -23,5 +25,9 @@
   "block.skydock.brass_lantern": "Brass Lantern",
   "block.skydock.canvas_awning": "Canvas Awning",
   "block.skydock.timber_railing": "Timber Railing",
-  "block.skydock.signal_flag": "Signal Flag"
+  "block.skydock.signal_flag": "Signal Flag",
+  "gamerule.skydockCollisionDamage": "Airship collision damage",
+  "gamerule.skydockCollisionDamage.description": "Hard ship impacts break hull blocks, and moving hulls hurt creatures in their path.",
+  "death.attack.skydock.ship_collision": "%1$s was struck by an airship",
+  "death.attack.skydock.ship_collision.player": "%1$s was run down by %2$s's airship"
 }

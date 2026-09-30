@@ -15,5 +15,5 @@ public abstract class ClientInteractionMixin {
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void skydock$attack(CallbackInfoReturnable<Boolean> cir) { if (skydock$shipHit()) cir.setReturnValue(false); }
     @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
-    private void skydock$break(boolean down, CallbackInfo ci) { if (skydock$shipHit()) ci.cancel(); }
+    private void skydock$break(boolean down, CallbackInfo ci) { if (down && skydock$shipHit()) ci.cancel(); }
 }

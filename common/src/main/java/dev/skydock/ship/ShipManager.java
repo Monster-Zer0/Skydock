@@ -26,11 +26,17 @@ public final class ShipManager {
     public record Boarding(UUID ship, Vec3 localFeet) {}
     private static final Map<UUID, Boarding> BOARDING = new HashMap<>();
     private static final Set<UUID> JOINED = new HashSet<>();
+    /** Active ships per level. Entity collision asks for these on every move, so the list is kept until the fleet changes. */
+    private static final Map<Level, List<Ship>> ACTIVE = new IdentityHashMap<>();
+    private static final Map<GlobalPos, Long> LAST_TRANSFER = new HashMap<>();
     public static Collection<Ship> ships(Level level) {
         if (level.isClientSide) return ClientShipAccess.ships(level);
         ShipSavedData data = SERVERS.get(level.getServer());
-        return data == null ? List.of() : data.ships.values().stream().filter(s -> s.phase.equals("active") && s.dimension.equals(level.dimension())).toList();
+        if (data == null) return List.of();
+        return ACTIVE.computeIfAbsent(level, key -> data.ships.values().stream().filter(s -> s.phase.equals("active") && s.dimension.equals(key.dimension())).toList());
     }
+    /** Call whenever a ship is added, removed, or changes phase. */
+    public static void fleetChanged() { ACTIVE.clear(); }
     public static Ship get(MinecraftServer server, UUID id) { return ShipSavedData.get(server).ships.get(id); }
     public static boolean berthReserved(Level level, BlockPos dock) {
         if (level.isClientSide || level.getServer() == null) return false;
@@ -38,13 +44,20 @@ public final class ShipManager {
                 .anyMatch(ship -> ship.dimension.equals(level.dimension()) && ship.dock.equals(dock));
     }
     public static void start(MinecraftServer server) {
-        ShipSavedData data = ShipSavedData.get(server); SERVERS.put(server, data);
+        ShipSavedData data = ShipSavedData.get(server); SERVERS.put(server, data); fleetChanged();
         for (Ship ship : List.copyOf(data.ships.values())) {
             try { ShipTransfer.complete(server, ship); }
             catch (Exception e) { Skydock.LOGGER.error("Ship {} transfer remains in its recovery journal", ship.id, e); }
         }
     }
-    public static void stop(MinecraftServer server) { SERVERS.remove(server); WORLD_TICKETS.clear(); BOARDING.clear(); JOINED.clear(); ShipInteractions.clear(); }
+    public static void stop(MinecraftServer server) { SERVERS.remove(server); WORLD_TICKETS.clear(); BOARDING.clear(); JOINED.clear(); LAST_TRANSFER.clear(); fleetChanged(); ShipDamage.clear(); ShipInteractions.clear(); }
+    /** Launch and redock each flush the journal and chunks to disk, so one berth cannot be cycled every tick. */
+    private static boolean settling(ServerPlayer player, BlockPos pos) {
+        Long last = LAST_TRANSFER.get(GlobalPos.of(player.level().dimension(), pos));
+        if (last != null && player.level().getGameTime() - last < 100) { tell(player, "The berth is still settling; try again in a few seconds."); return true; }
+        return false;
+    }
+    private static void transferred(ServerPlayer player, BlockPos pos) { LAST_TRANSFER.put(GlobalPos.of(player.level().dimension(), pos.immutable()), player.level().getGameTime()); }
     public static Boarding boarding(Player player) { return BOARDING.get(player.getUUID()); }
     public static void prepareBoarding(ServerPlayer player) {
         if (!JOINED.add(player.getUUID()) || !player.isAlive() || player.isSpectator()) return;
@@ -182,6 +195,7 @@ public final class ShipManager {
     public static void launch(ServerPlayer player, BlockPos pos) {
         DockBlockEntity dock = dock(player, pos); if (dock == null) return;
         if (dock.assemblyJob() != null) { tell(player, "Wait for assembly to finish before launching."); return; }
+        if (settling(player, pos)) return;
         MinecraftServer server = player.getServer(); ShipSavedData data = ShipSavedData.get(server);
         if (data.ships.values().stream().anyMatch(s -> s.dimension.equals(player.level().dimension()) && s.dock.equals(pos))) { tell(player, "This berth is reserved by its launched ship."); return; }
         DockValidation result = DockValidation.scan(player.serverLevel(), dock);
@@ -202,7 +216,7 @@ public final class ShipManager {
         ship.phase = "launching"; ship.transferOrigin = origin; ship.transferDock = pos; ship.transferDimension = ship.dimension;
         data.ships.put(ship.id, ship); ShipTransfer.flush(server);
         try {
-            forceTickets(server, ship); ShipTransfer.complete(server, ship); ShipNetwork.resync(server);
+            forceTickets(server, ship); ShipTransfer.complete(server, ship); transferred(player, pos); ShipNetwork.resync(server);
             dock.clearHullMarker("Ship launched.");
             tell(player, "Launched " + ship.blocks.size() + " real blocks. Use the helm to take control; your berth remains reserved.");
         } catch (Exception ex) {
@@ -213,6 +227,7 @@ public final class ShipManager {
     public static void redockNearest(ServerPlayer player, BlockPos pos) {
         DockBlockEntity dock = dock(player, pos); if (dock == null) return;
         if (dock.assemblyJob() != null) { tell(player, "Cancel or finish the active assembly before redocking."); return; }
+        if (settling(player, pos)) return;
         Ship ship = ships(player.level()).stream().filter(s -> permitted(player, s))
                 .min(Comparator.comparingDouble(s -> s.bounds().getCenter().distanceToSqr(Vec3.atCenterOf(pos)))).orElse(null);
         if (ship == null) { tell(player, "No owned ship is available in this dimension."); return; }
@@ -232,9 +247,10 @@ public final class ShipManager {
         carry(world, ship, old);
         ship.velocity = Vec3.ZERO; ship.pilot = null; ship.seated.clear();
         ship.phase = "redocking"; ship.transferOrigin = origin; ship.transferDock = pos; ship.transferDimension = world.dimension();
+        fleetChanged();
         ShipTransfer.flush(player.getServer());
         try {
-            ShipTransfer.complete(player.getServer(), ship); ShipNetwork.resync(player.getServer());
+            ShipTransfer.complete(player.getServer(), ship); transferred(player, pos); ShipNetwork.resync(player.getServer());
             dock.markManualHull(ship.blocks.size());
             tell(player, "Redocked. Real blocks and inventories are back in the berth; rebuilding is enabled.");
         }
@@ -309,7 +325,8 @@ public final class ShipManager {
         for (Ship ship : List.copyOf(data.ships.values())) {
             if (!ship.phase.equals("active")) continue;
             ServerLevel level = server.getLevel(ship.dimension); if (level == null) continue;
-            if (tick % 20 == 0) { forceTickets(server, ship); refresh(server, ship); }
+            // Spread the once-a-second hull refresh across ticks so a large fleet does not rescan all at once.
+            if ((tick + Math.floorMod(ship.id.hashCode(), 20)) % 20 == 0) { forceTickets(server, ship); refresh(server, ship); }
             ship.previousPose = ship.pose;
             if (ship.pilot != null) {
                 ServerPlayer pilot = server.getPlayerList().getPlayer(ship.pilot);
@@ -321,14 +338,14 @@ public final class ShipManager {
             ShipPhysics.step(server, level, ship);
             ship.history.accept(tick, ship.pose, ship.velocity, ship.yawVelocity);
             carry(level, ship, ship.previousPose);
-            if (tick % 2 == 0) ShipNetwork.syncPose(server, ship);
-            if (tick % 100 == 0) ShipTransfer.snapshot(ship, server.getLevel(SHIPYARD), ship.yard);
+            ShipDamage.ram(level, ship);
+            if (tick % 2 == 0) ShipNetwork.syncPose(server, ship, false);
         }
         ShipInteractions.tick(server);
         if (tick % 20 == 0) ShipNetwork.syncPlayers(server);
         if (!data.ships.isEmpty()) data.setDirty();
     }
-    private static void refresh(MinecraftServer server, Ship ship) {
+    static void refresh(MinecraftServer server, Ship ship) {
         ServerLevel yard = server.getLevel(SHIPYARD); if (yard == null) return;
         ship.mass = 0; ship.cells = 0; ship.engines = 0; boolean changed = false;
         for (var entry : ship.blocks.entrySet()) {
@@ -349,7 +366,8 @@ public final class ShipManager {
             if (now.is(SkydockBlocks.ENGINES)) ship.engines++;
         }
         ship.lift = ship.cells * MassTable.liftPerCell();
-        if (changed) { ship.revision++; ShipNetwork.resync(server); }
+        // syncPlayers later this tick resends only hulls whose revision moved; resync would resend every hull.
+        if (changed) ship.revision++;
     }
     public static void carry(Level level, Ship ship, ShipPose previous) {
         List<Entity> riders = new ArrayList<>(level.getEntities((Entity) null,
@@ -411,10 +429,11 @@ public final class ShipManager {
             for (int z = net.minecraft.util.Mth.floor(box.minZ) >> 4; z <= net.minecraft.util.Mth.floor(box.maxZ) >> 4; z++) result.add(new ChunkPos(x, z));
         return result;
     }
-    private static void forceTickets(MinecraftServer server, Ship ship) {
+    static void forceTickets(MinecraftServer server, Ship ship) {
         ServerLevel yard = server.getLevel(SHIPYARD), world = server.getLevel(ship.dimension); if (yard == null || world == null) return;
         for (ChunkPos cp : chunks(new AABB(ship.yard).expandTowards(ship.tier.width, ship.tier.height, ship.tier.length))) yard.getChunkSource().addRegionTicket(TICKET, cp, 2, ship.id);
-        Set<ChunkPos> next = chunks(ship.bounds().inflate(16));
+        // Lead along the velocity so a cruising hull finds its path already loaded.
+        Set<ChunkPos> next = chunks(ship.bounds().inflate(16).expandTowards(ship.velocity.scale(40)));
         Set<ChunkPos> old = WORLD_TICKETS.getOrDefault(ship.id, Set.of());
         for (ChunkPos cp : old) if (!next.contains(cp)) world.getChunkSource().removeRegionTicket(TICKET, cp, 2, ship.id);
         for (ChunkPos cp : next) world.getChunkSource().addRegionTicket(TICKET, cp, 2, ship.id);

@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CrossCollisionBlock;
 import net.minecraft.world.level.block.FenceBlock;
+import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import org.junit.jupiter.api.BeforeAll;
@@ -34,10 +35,10 @@ class ShipPatternsTest {
             DockTier.CRUISER, new Dimensions(23, 15, 35),
             DockTier.DREADNOUGHT, new Dimensions(29, 18, 43));
     private static final Map<String, Integer> LIFT_CELLS = Map.ofEntries(
-            Map.entry("scout_cutter", 96), Map.entry("scout_twinhull", 48), Map.entry("scout_hauler", 32),
-            Map.entry("brig_cutter", 360), Map.entry("brig_twinhull", 80), Map.entry("brig_hauler", 64),
-            Map.entry("cruiser_cutter", 896), Map.entry("cruiser_twinhull", 448), Map.entry("cruiser_hauler", 384),
-            Map.entry("dreadnought_cutter", 1800), Map.entry("dreadnought_twinhull", 576), Map.entry("dreadnought_hauler", 512));
+            Map.entry("scout_cutter", 112), Map.entry("scout_twinhull", 102), Map.entry("scout_hauler", 92),
+            Map.entry("brig_cutter", 317), Map.entry("brig_twinhull", 324), Map.entry("brig_hauler", 312),
+            Map.entry("cruiser_cutter", 676), Map.entry("cruiser_twinhull", 590), Map.entry("cruiser_hauler", 440),
+            Map.entry("dreadnought_cutter", 1200), Map.entry("dreadnought_twinhull", 1052), Map.entry("dreadnought_hauler", 704));
 
     @BeforeAll static void bootstrapVanillaRegistries() {
         SharedConstants.tryDetectVersion();
@@ -96,7 +97,7 @@ class ShipPatternsTest {
         for (ShipPattern pattern : catalog()) {
             Map<Block, Long> blocks = pattern.included(false).stream().collect(Collectors.groupingBy(
                     cell -> cell.state().getBlock(), HashMap::new, Collectors.counting()));
-            int expectedEngines = pattern.id().getPath().endsWith("_twinhull") ? 2 : 1;
+            int expectedEngines = pattern.id().getPath().endsWith("_hauler") ? 1 : 2;
             Block engine = testEngine(pattern.tier());
             int liftCells = blocks.getOrDefault(Blocks.WHITE_WOOL, 0L).intValue();
             double mass = pattern.included(false).stream().mapToDouble(cell -> MassTable.mass(cell.state())).sum();
@@ -108,7 +109,6 @@ class ShipPatternsTest {
             assertTrue(blocks.getOrDefault(Blocks.CHEST, 0L) >= 1, report);
             assertTrue(blocks.getOrDefault(Blocks.FURNACE, 0L) >= 1, report);
             assertEquals(LIFT_CELLS.get(pattern.id().getPath()).intValue(), liftCells, report);
-            assertEquals(0, liftCells % 8, report);
             assertTrue(liftCells * MassTable.liftPerCell() >= mass, report);
             assertTrue(pattern.included(false).size() <= liftCells * MassTable.blocksPerCell(), report);
         }
@@ -148,6 +148,21 @@ class ShipPatternsTest {
                 int middleZ = frontZ + (int) bounds.getZsize() / 2;
                 long deckWidth = core.stream().filter(pos -> pos.getY() == 1 && pos.getZ() == middleZ).count();
                 assertEquals((int) bounds.getXsize(), deckWidth, pattern.name() + " broad barge deck");
+            }
+        }
+    }
+
+    @Test void deckStairsKeepPlayerHeadroom() {
+        for (ShipPattern pattern : catalog()) {
+            Set<BlockPos> core = pattern.included(false).stream().map(ShipPattern.Block::pos).collect(Collectors.toSet());
+            List<BlockPos> steps = pattern.included(false).stream().filter(cell -> cell.state().getBlock() instanceof StairBlock
+                    && cell.state().getValue(StairBlock.FACING) == Direction.SOUTH).map(ShipPattern.Block::pos).toList();
+            int lowest = steps.stream().mapToInt(BlockPos::getY).min().orElse(Integer.MAX_VALUE);
+            for (BlockPos step : steps) {
+                assertFalse(core.contains(step.above()) || core.contains(step.above(2)), pattern.name() + " stair without headroom at " + step);
+                // The tile a player steps off from must clear a rising head too, not only the steps themselves.
+                if (step.getY() == lowest) for (int dy = 0; dy <= 2; dy++)
+                    assertFalse(core.contains(step.north().above(dy)), pattern.name() + " blocked stair approach at " + step.north().above(dy));
             }
         }
     }

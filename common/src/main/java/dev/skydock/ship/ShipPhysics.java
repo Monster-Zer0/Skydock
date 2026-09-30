@@ -2,6 +2,10 @@ package dev.skydock.ship;
 
 import dev.skydock.block.*;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.chunk.LevelChunk;
+import java.util.List;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.*;
@@ -16,8 +20,7 @@ public final class ShipPhysics {
         double poweredThrust = 0;
         if (ship.cruise || Math.abs(ship.throttle) > .001 || Math.abs(ship.appliedThrottle) > .001 || Math.abs(ship.steering) > .01) {
             ServerLevel yard = server.getLevel(ShipManager.SHIPYARD);
-            for (var entry : ship.blocks.entrySet()) if (entry.getValue().is(SkydockBlocks.ENGINES)
-                    && yard.getBlockEntity(ship.yard.offset(entry.getKey())) instanceof EngineBlockEntity engine && engine.burn()) {
+            for (BlockPos p : ship.enginePositions()) if (yard.getBlockEntity(ship.yard.offset(p)) instanceof EngineBlockEntity engine && engine.burn()) {
                 EngineTier tier = engine.tier();
                 poweredThrust += tier.thrustMultiplier;
                 if (poweredTier == null || tier.ordinal() > poweredTier.ordinal()) poweredTier = tier;
@@ -26,8 +29,9 @@ public final class ShipPhysics {
         boolean powered = poweredTier != null;
         if (ship.cruise && !powered) {
             ship.cruise = false;
-            var owner = server.getPlayerList().getPlayer(ship.owner);
-            if (owner != null) ShipManager.tell(owner, "Cruise disengaged: engines need fuel.");
+            // The pilot may be a teammate rather than the owner; tell whoever is flying.
+            var pilot = server.getPlayerList().getPlayer(ship.pilot != null ? ship.pilot : ship.owner);
+            if (pilot != null) ShipManager.tell(pilot, "Cruise disengaged: engines need fuel.");
         }
         double speedLimit = powered ? poweredTier.maxSpeed : FlightDynamics.MAX_SPEED;
         if (ship.cruise) ship.cruiseSpeed = Math.clamp(ship.cruiseSpeed + ship.throttle * .006, -speedLimit, speedLimit);
@@ -47,32 +51,68 @@ public final class ShipPhysics {
         double desiredTurn = powered ? ship.steering * FlightDynamics.turnRate(ship.mass, hullLength) : 0;
         ship.yawVelocity = FlightDynamics.approach(ship.yawVelocity, desiredTurn, desiredTurn == 0 ? .28 : .18);
         double turn = ship.yawVelocity;
+        // A hovering hull cannot move into terrain, so skip the full-envelope collision scan.
+        if (velocity.lengthSqr() < 1e-8 && Math.abs(turn) < 1e-6) { ship.velocity = Vec3.ZERO; ship.yawVelocity = 0; ship.blocked = false; return; }
         AABB hull = ship.hullBounds();
         double radius = Math.hypot(Math.max(Math.abs(hull.minX), Math.abs(hull.maxX)), Math.max(Math.abs(hull.minZ), Math.abs(hull.maxZ)));
-        double maxTravel = velocity.length() + Math.abs(Math.toRadians(turn)) * radius;
-        int steps = Math.max(1, (int) Math.ceil(maxTravel / .2));
+        double arc = Math.abs(Math.toRadians(turn)) * radius;
+        // One box covers the whole tick: both end poses, widened by the arc any hull point sweeps while turning.
+        ShipPose end = new ShipPose(ship.pose.x() + velocity.x, ship.pose.y() + velocity.y, ship.pose.z() + velocity.z, ship.pose.yaw() + turn);
+        AABB swept = ship.hullWorldBounds().minmax(end.transform().toWorld(hull)).inflate(arc + .05);
+        Terrain terrain = terrain(world, swept);
+        if (terrain == Terrain.UNLOADED) {
+            // Hold at the edge of loaded terrain instead of flying into chunks that could load around the hull.
+            ship.velocity = Vec3.ZERO; ship.yawVelocity = 0; ship.blocked = false;
+            ShipManager.forceTickets(server, ship);
+            return;
+        }
+        List<Ship> neighbors = ShipManager.ships(world).stream().filter(other -> other != ship && other.hullWorldBounds().intersects(swept)).toList();
+        boolean inside = swept.minY >= world.getMinBuildHeight() && swept.maxY < world.getMaxBuildHeight() && world.getWorldBorder().isWithinBounds(swept);
+        boolean clear = terrain == Terrain.EMPTY && neighbors.isEmpty() && inside;
+        int steps = clear ? 1 : Math.max(1, (int) Math.ceil((velocity.length() + arc) / .2));
         ship.blocked = false;
         for (int i = 0; i < steps; i++) {
             ShipPose next = new ShipPose(ship.pose.x() + velocity.x / steps, ship.pose.y() + velocity.y / steps,
                     ship.pose.z() + velocity.z / steps, ship.pose.yaw() + turn / steps);
-            if (collides(world, ship, next)) { ship.blocked = true; velocity = Vec3.ZERO; ship.yawVelocity = 0; ship.cruise = false; ship.appliedThrottle = 0; break; }
+            if (!clear && collides(world, ship, next, terrain == Terrain.SOLID, neighbors, inside)) {
+                Vec3 impact = velocity;
+                ship.blocked = true; velocity = Vec3.ZERO; ship.yawVelocity = 0; ship.cruise = false; ship.appliedThrottle = 0;
+                ShipDamage.impact(server, world, ship, next, impact, turn, neighbors);
+                break;
+            }
             ship.pose = next;
         }
         ship.velocity = velocity;
     }
+    private enum Terrain { EMPTY, SOLID, UNLOADED }
+    /** Classifies the chunk sections under a box without touching individual blocks; open sky is the common case. */
+    private static Terrain terrain(ServerLevel world, AABB box) {
+        int minSection = Math.max(world.getMinSection(), SectionPos.blockToSectionCoord(Mth.floor(box.minY)));
+        int maxSection = Math.min(world.getMaxSection() - 1, SectionPos.blockToSectionCoord(Mth.floor(box.maxY)));
+        boolean solid = false;
+        for (int x = SectionPos.blockToSectionCoord(Mth.floor(box.minX)); x <= SectionPos.blockToSectionCoord(Mth.floor(box.maxX)); x++)
+            for (int z = SectionPos.blockToSectionCoord(Mth.floor(box.minZ)); z <= SectionPos.blockToSectionCoord(Mth.floor(box.maxZ)); z++) {
+                LevelChunk chunk = world.getChunkSource().getChunkNow(x, z);
+                if (chunk == null) return Terrain.UNLOADED;
+                for (int y = minSection; y <= maxSection && !solid; y++)
+                    if (!chunk.getSection(chunk.getSectionIndexFromSectionY(y)).hasOnlyAir()) solid = true;
+            }
+        return solid ? Terrain.SOLID : Terrain.EMPTY;
+    }
     public static double installedMaxSpeed(Ship ship) {
         double result = FlightDynamics.MAX_SPEED;
-        for (var state : ship.blocks.values()) if (state.is(SkydockBlocks.ENGINES)) result = Math.max(result, EngineTier.from(state).maxSpeed);
+        for (BlockPos p : ship.enginePositions()) result = Math.max(result, EngineTier.from(ship.state(p)).maxSpeed);
         return result;
     }
-    private static boolean collides(ServerLevel world, Ship ship, ShipPose pose) {
-        AABB bounds = pose.toWorld(ship.hullBounds());
-        if (bounds.minY < world.getMinBuildHeight() || bounds.maxY >= world.getMaxBuildHeight() || !world.getWorldBorder().isWithinBounds(bounds)) return true;
-        for (VoxelShape terrain : world.getBlockCollisions(null, bounds)) {
-            for (AABB box : terrain.toAabbs()) if (!ShipCollision.shapes(ship, pose, box.deflate(1e-5)).isEmpty()) return true;
-        }
-        for (Ship other : ShipManager.ships(world)) if (other != ship && other.bounds().intersects(bounds)) {
-            AABB overlap = other.bounds().intersect(bounds);
+    private static boolean collides(ServerLevel world, Ship ship, ShipPose pose, boolean terrain, List<Ship> neighbors, boolean inside) {
+        ShipPose.Transform transform = pose.transform();
+        AABB bounds = transform.toWorld(ship.hullBounds());
+        if (!inside && (bounds.minY < world.getMinBuildHeight() || bounds.maxY >= world.getMaxBuildHeight() || !world.getWorldBorder().isWithinBounds(bounds))) return true;
+        // Terrain is sampled around each surface cell rather than across the whole hull box.
+        if (terrain) for (Ship.Surface surface : ship.surfaceCollisionBoxes())
+            if (world.getBlockCollisions(null, transform.toWorld(surface.box()).deflate(1e-5)).iterator().hasNext()) return true;
+        for (Ship other : neighbors) if (other.hullWorldBounds().intersects(bounds)) {
+            AABB overlap = other.hullWorldBounds().intersect(bounds);
             for (VoxelShape box : ShipCollision.shapes(other, other.pose, overlap))
                 if (!ShipCollision.shapes(ship, pose, box.bounds().deflate(1e-5)).isEmpty()) return true;
         }

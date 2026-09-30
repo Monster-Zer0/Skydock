@@ -11,6 +11,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
@@ -20,6 +21,13 @@ import java.util.function.Consumer;
 public final class ShipNetwork {
     public static Consumer<CompoundTag> clientReceiver = tag -> {};
     private static final Map<UUID, Map<UUID, Integer>> sent = new HashMap<>();
+    /** Hull payloads are built once per revision and shared by every player that needs them. */
+    private record HullParts(int revision, long built, List<ListTag> parts) {}
+    private static final Map<UUID, HullParts> hulls = new HashMap<>();
+    private record PoseSent(CompoundTag message, long tick) {}
+    private static final Map<UUID, PoseSent> poses = new HashMap<>();
+    private static final Map<UUID, Long> hellos = new HashMap<>();
+    private static final double TRACK_RANGE = 256, UNTRACK_RANGE = 288;
     private static long deckMoveSequence;
 
     public record Snapshot(CompoundTag data) implements CustomPacketPayload {
@@ -87,7 +95,13 @@ public final class ShipNetwork {
                 case 0 -> ShipManager.control(player, packet.thrust, packet.yaw, packet.vertical);
                 case 1 -> ShipInteractions.useFromLook(player);
                 case 2 -> ShipManager.release(player);
-                case 3 -> { ShipManager.prepareBoarding(player); sent.remove(player.getUUID()); syncPlayers(player.getServer()); }
+                case 3 -> {
+                    // The client says hello once per world join; a flood of them must not resend every hull.
+                    long now = player.serverLevel().getGameTime();
+                    Long last = hellos.put(player.getUUID(), now);
+                    if (last != null && now - last < 40) return;
+                    ShipManager.prepareBoarding(player); sent.remove(player.getUUID()); syncPlayer(player);
+                }
                 case 4 -> ShipManager.toggleCruise(player);
             }
         }));
@@ -100,7 +114,7 @@ public final class ShipNetwork {
         frame = frame.withSequence(++deckMoveSequence);
         NetworkManager.sendToServer(new DeckMove(frame.sequence(), frame.ship(), frame.shipTime(), frame.localFeet(), frame.departing()));
     }
-    public static void reset() { sent.clear(); }
+    public static void reset() { sent.clear(); hulls.clear(); poses.clear(); hellos.clear(); }
     public static void correctDeck(ServerPlayer player, Ship ship, Vec3 localFeet) {
         CompoundTag msg = new CompoundTag();
         msg.putString("Kind", "deck_correction"); msg.putUUID("Id", ship.id);
@@ -110,21 +124,28 @@ public final class ShipNetwork {
     public static void resync(MinecraftServer server) { sent.clear(); syncPlayers(server); }
     public static void syncPlayers(MinecraftServer server) {
         sent.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            Map<UUID, Integer> seen = sent.computeIfAbsent(player.getUUID(), k -> new HashMap<>());
-            ListTag manifest = new ListTag(); Set<UUID> active = new HashSet<>();
-            for (Ship ship : ShipManager.ships(player.level())) {
-                if (ship.bounds().distanceToSqr(player.position()) > 256 * 256) continue;
-                active.add(ship.id); CompoundTag id = new CompoundTag(); id.putUUID("Id", ship.id); manifest.add(id);
-                if (!Objects.equals(seen.get(ship.id), ship.revision)) { sendShip(player, ship); seen.put(ship.id, ship.revision); }
-            }
-            seen.keySet().retainAll(active);
-            CompoundTag msg = new CompoundTag(); msg.putString("Kind", "manifest"); msg.put("Ships", manifest); send(player, msg);
+        hellos.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
+        Set<UUID> fleet = new HashSet<>();
+        for (ServerLevel level : server.getAllLevels()) for (Ship ship : ShipManager.ships(level)) fleet.add(ship.id);
+        hulls.keySet().retainAll(fleet); poses.keySet().retainAll(fleet);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) syncPlayer(player);
+    }
+    private static void syncPlayer(ServerPlayer player) {
+        Map<UUID, Integer> seen = sent.computeIfAbsent(player.getUUID(), k -> new HashMap<>());
+        ListTag manifest = new ListTag(); Set<UUID> active = new HashSet<>();
+        for (Ship ship : ShipManager.ships(player.level())) {
+            // A wider release range keeps a player on the boundary from receiving the whole hull again and again.
+            double range = seen.containsKey(ship.id) ? UNTRACK_RANGE : TRACK_RANGE;
+            if (ship.bounds().distanceToSqr(player.position()) > range * range) continue;
+            active.add(ship.id); CompoundTag id = new CompoundTag(); id.putUUID("Id", ship.id); manifest.add(id);
+            if (!Objects.equals(seen.get(ship.id), ship.revision)) { sendShip(player, ship); seen.put(ship.id, ship.revision); }
         }
+        seen.keySet().retainAll(active);
+        CompoundTag msg = new CompoundTag(); msg.putString("Kind", "manifest"); msg.put("Ships", manifest); send(player, msg);
     }
     private static void sendShip(ServerPlayer player, Ship ship) {
-        List<Map.Entry<BlockPos, net.minecraft.world.level.block.state.BlockState>> blocks = new ArrayList<>(ship.blocks.entrySet());
-        int parts = Math.max(1, (blocks.size() + 255) / 256);
+        List<ListTag> cells = hullParts(player.getServer(), ship);
+        int parts = cells.size();
         for (int part = 0; part < parts; part++) {
             CompoundTag msg = ship.save(player.registryAccess(), false);
             ShipManager.Boarding boarding = ShipManager.boarding(player);
@@ -135,22 +156,41 @@ public final class ShipNetwork {
             // Hull refreshes can run before this tick's physics; stamp the pose, not the send time.
             msg.putLong("Tick", ship.history.latestTick(player.getServer().overworld().getGameTime()));
             msg.putString("Kind", "blocks"); msg.putInt("Part", part); msg.putInt("Parts", parts);
+            msg.put("CellsData", cells.get(part)); send(player, msg);
+        }
+    }
+    /** Cell lists in 256-block parts. Block-entity visuals can change without a revision, so a cached copy also ages out. */
+    private static List<ListTag> hullParts(MinecraftServer server, Ship ship) {
+        long now = server.overworld().getGameTime();
+        HullParts cached = hulls.get(ship.id);
+        if (cached != null && cached.revision == ship.revision && now - cached.built < 200) return cached.parts;
+        List<Map.Entry<BlockPos, net.minecraft.world.level.block.state.BlockState>> blocks = new ArrayList<>(ship.blocks.entrySet());
+        var yard = server.getLevel(ShipManager.SHIPYARD);
+        List<ListTag> parts = new ArrayList<>();
+        for (int part = 0; part < Math.max(1, (blocks.size() + 255) / 256); part++) {
             ListTag list = new ListTag();
             for (int i = part * 256; i < Math.min(blocks.size(), (part + 1) * 256); i++) {
                 var e = blocks.get(i); CompoundTag entry = new CompoundTag();
                 entry.putLong("Pos", e.getKey().asLong()); entry.putInt("State", Block.getId(e.getValue()));
-                var yard = player.getServer().getLevel(ShipManager.SHIPYARD);
                 var be = yard == null ? null : yard.getBlockEntity(ship.yard.offset(e.getKey()));
-                if (be != null) entry.put("Data", be.getUpdateTag(player.registryAccess()));
+                if (be != null) entry.put("Data", be.getUpdateTag(server.registryAccess()));
                 list.add(entry);
             }
-            msg.put("CellsData", list); send(player, msg);
+            parts.add(list);
         }
+        hulls.put(ship.id, new HullParts(ship.revision, now, List.copyOf(parts)));
+        return parts;
     }
-    public static void syncPose(MinecraftServer server, Ship ship) {
+    public static void syncPose(MinecraftServer server, Ship ship) { syncPose(server, ship, true); }
+    /** With {@code always} false, an unchanged ship only sends a heartbeat once a second instead of ten poses. */
+    public static void syncPose(MinecraftServer server, Ship ship, boolean always) {
         CompoundTag msg = ship.save(server.registryAccess(), false); msg.putString("Kind", "pose");
-        msg.putLong("Tick", ship.history.latestTick(server.overworld().getGameTime()));
         ListTag seats = new ListTag(); ship.seated.forEach((id, p) -> { CompoundTag tag = new CompoundTag(); tag.putUUID("Player", id); tag.putLong("Pos", p.asLong()); seats.add(tag); }); msg.put("Seated", seats);
+        long now = server.overworld().getGameTime();
+        PoseSent last = poses.get(ship.id);
+        if (!always && last != null && now - last.tick < 20 && last.message.equals(msg)) return;
+        poses.put(ship.id, new PoseSent(msg.copy(), now));
+        msg.putLong("Tick", ship.history.latestTick(now));
         for (ServerPlayer player : server.getPlayerList().getPlayers()) if (player.level().dimension().equals(ship.dimension) && sent.getOrDefault(player.getUUID(), Map.of()).containsKey(ship.id)) send(player, msg);
     }
 }

@@ -8,21 +8,23 @@ import net.minecraft.world.phys.*;
 import net.minecraft.world.phys.shapes.*;
 import java.util.*;
 
-/** Broad phase is the rotated dock box; narrow phase samples nearby hull voxel shapes. */
+/** Broad phase is the rotated occupied hull box; narrow phase samples nearby hull voxel shapes. */
 public final class ShipCollision {
     public static final double ATTACHMENT_HEIGHT = 2.5;
 
     public static List<VoxelShape> shapes(Ship ship, ShipPose pose, AABB worldQuery) {
+        ShipPose.Transform transform = pose == ship.pose ? ship.transform() : pose.transform();
+        AABB hull = pose == ship.pose ? ship.hullWorldBounds() : transform.toWorld(ship.hullBounds());
+        if (!hull.inflate(.05).intersects(worldQuery)) return List.of();
         List<VoxelShape> result = new ArrayList<>();
-        if (!pose.toWorld(ship.localBounds()).inflate(.05).intersects(worldQuery)) return result;
-        AABB local = pose.toLocal(worldQuery).move(ship.center()).inflate(1);
+        AABB local = transform.toLocal(worldQuery).move(ship.center()).inflate(1);
         ShipBlockView view = new ShipBlockView(ship);
         for (BlockPos p : BlockPos.betweenClosed(
                 new BlockPos(Math.max(0, Mth.floor(local.minX)), Math.max(0, Mth.floor(local.minY)), Math.max(0, Mth.floor(local.minZ))),
                 new BlockPos(Math.min(ship.tier.width - 1, Mth.floor(local.maxX)), Math.min(ship.tier.height - 1, Mth.floor(local.maxY)), Math.min(ship.tier.length - 1, Mth.floor(local.maxZ))))) {
             BlockState state = ship.state(p); if (state.isAir()) continue;
             for (AABB box : state.getCollisionShape(view, p).toAabbs()) {
-                AABB rotated = pose.toWorld(box.move(p).move(ship.center().scale(-1)));
+                AABB rotated = transform.toWorld(box.move(p.getX() - ship.center().x, p.getY(), p.getZ() - ship.center().z));
                 if (rotated.intersects(worldQuery)) result.add(Shapes.create(rotated));
             }
         }

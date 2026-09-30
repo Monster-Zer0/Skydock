@@ -128,6 +128,10 @@ public final class ShipInteractions {
     private static void openRemoteBlockMenu(ServerPlayer player, Ship ship, BlockPos local, BlockState state, BlockHitResult localHit) {
         ServerLevel yard = player.getServer().getLevel(ShipManager.SHIPYARD);
         BlockPos at = ship.yard.offset(local); BlockState actual = yard.getBlockState(at);
+        // The shipyard's dimension type disables beds and anchors, and vanilla answers that by exploding them inside the hull.
+        if (actual.getBlock() instanceof net.minecraft.world.level.block.BedBlock || actual.getBlock() instanceof net.minecraft.world.level.block.RespawnAnchorBlock) {
+            ShipManager.tell(player, "Beds and respawn anchors only work while the ship is docked."); return;
+        }
         BlockHitResult remapped = new BlockHitResult(localHit.getLocation().add(Vec3.atLowerCornerOf(ship.yard)), localHit.getDirection(), at, localHit.isInside());
         AbstractContainerMenu before = player.containerMenu;
         // Use the real block, preserving its menu, slots and BE tick. Item placement is deliberately absent.

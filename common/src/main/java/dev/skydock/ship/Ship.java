@@ -36,6 +36,13 @@ public final class Ship {
     private Vec3 pivot;
     private AABB cachedHullBounds;
     private int hullRevision = -1;
+    // Derived views keyed on the pose instance or the block revision; poses are immutable records.
+    private ShipPose transformPose, envelopePose, hullWorldPose;
+    private ShipPose.Transform cachedTransform;
+    private AABB cachedEnvelope, cachedHullWorld, hullWorldSource;
+    private List<BlockPos> cachedEngines;
+    private List<Surface> cachedSurface;
+    private int enginesRevision = -1, surfaceRevision = -1;
     public long lastInputTick;
     public boolean moored = true, blocked;
     public String phase = "active";
@@ -48,7 +55,7 @@ public final class Ship {
     void initializePivot() {
         if (pivot != null) return;
         Vec3 old = legacyCenter(), next = occupiedCenter();
-        pivot = next; cachedHullBounds = null; hullRevision = -1;
+        pivot = next; cachedHullBounds = null; hullRevision = -1; cachedSurface = null;
         if (pose != null) pose = rebase(pose, old, next);
         if (previousPose != null) previousPose = rebase(previousPose, old, next);
     }
@@ -67,7 +74,55 @@ public final class Ship {
     public Vec3 blockToWorld(Vec3 block) { return pose.toWorld(block.subtract(center())); }
     public Vec3 worldToBlock(Vec3 world) { return pose.toLocal(world).add(center()); }
     public AABB localBounds() { return new AABB(0, 0, 0, tier.width, tier.height, tier.length).move(center().scale(-1)); }
-    public AABB bounds() { return pose.toWorld(localBounds()); }
+    public AABB bounds() {
+        if (envelopePose != pose) { cachedEnvelope = transform().toWorld(localBounds()); envelopePose = pose; }
+        return cachedEnvelope;
+    }
+    public ShipPose.Transform transform() {
+        if (transformPose != pose) { cachedTransform = pose.transform(); transformPose = pose; }
+        return cachedTransform;
+    }
+    /** World box of the occupied hull at the current pose; most hulls are far smaller than their dock envelope. */
+    public AABB hullWorldBounds() {
+        AABB hull = hullBounds();
+        if (hullWorldPose != pose || hullWorldSource != hull) { cachedHullWorld = transform().toWorld(hull); hullWorldPose = pose; hullWorldSource = hull; }
+        return cachedHullWorld;
+    }
+    public List<BlockPos> enginePositions() {
+        if (cachedEngines == null || enginesRevision != revision) {
+            List<BlockPos> engines = new ArrayList<>();
+            for (var entry : blocks.entrySet()) if (entry.getValue().is(SkydockBlocks.ENGINES)) engines.add(entry.getKey());
+            cachedEngines = List.copyOf(engines); enginesRevision = revision;
+        }
+        return cachedEngines;
+    }
+    /** A collision box of a surface cell, pivot-relative, with the cell it belongs to. */
+    public record Surface(BlockPos cell, AABB box) {}
+    /**
+     * Collision boxes of every cell with a face not covered by a full neighbouring collision block.
+     * Moving in steps under a block, a hull can only first touch terrain through one of these.
+     */
+    public List<Surface> surfaceCollisionBoxes() {
+        if (cachedSurface == null || surfaceRevision != revision) {
+            ShipBlockView view = new ShipBlockView(this);
+            Vec3 center = center();
+            List<Surface> boxes = new ArrayList<>();
+            for (var entry : blocks.entrySet()) {
+                BlockState state = entry.getValue(); BlockPos p = entry.getKey();
+                if (state.isAir()) continue;
+                var shape = state.getCollisionShape(view, p);
+                if (shape.isEmpty()) continue;
+                boolean exposed = false;
+                for (Direction direction : Direction.values()) {
+                    BlockPos neighbor = p.relative(direction);
+                    if (!state(neighbor).isCollisionShapeFullBlock(view, neighbor)) { exposed = true; break; }
+                }
+                if (exposed) for (AABB box : shape.toAabbs()) boxes.add(new Surface(p, box.move(p.getX() - center.x, p.getY(), p.getZ() - center.z)));
+            }
+            cachedSurface = List.copyOf(boxes); surfaceRevision = revision;
+        }
+        return cachedSurface;
+    }
     public AABB hullBounds() {
         if (cachedHullBounds == null || hullRevision != revision) {
             AABB box = null;
@@ -123,12 +178,20 @@ public final class Ship {
             tag.putDouble("AnchorX", pilotAnchor.x); tag.putDouble("AnchorY", pilotAnchor.y); tag.putDouble("AnchorZ", pilotAnchor.z);
         }
         if (includeBlocks) {
-            ListTag list = new ListTag();
-            blocks.forEach((p, state) -> {
-                CompoundTag e = new CompoundTag(); e.putLong("Pos", p.asLong()); e.put("State", NbtUtils.writeBlockState(state));
-                if (blockEntities.containsKey(p)) e.put("Data", blockEntities.get(p).copy());
-                list.add(e);
-            }); tag.put("Blocks", list);
+            // One state compound per distinct state instead of per block keeps saves of large hulls small.
+            Map<BlockState, Integer> palette = new HashMap<>();
+            ListTag paletteTag = new ListTag();
+            long[] positions = new long[blocks.size()];
+            int[] states = new int[blocks.size()];
+            int i = 0;
+            for (var entry : blocks.entrySet()) {
+                positions[i] = entry.getKey().asLong();
+                states[i++] = palette.computeIfAbsent(entry.getValue(), state -> { paletteTag.add(NbtUtils.writeBlockState(state)); return paletteTag.size() - 1; });
+            }
+            tag.put("Palette", paletteTag); tag.putLongArray("BlockPositions", positions); tag.putIntArray("BlockStates", states);
+            ListTag data = new ListTag();
+            blockEntities.forEach((p, entity) -> { CompoundTag e = new CompoundTag(); e.putLong("Pos", p.asLong()); e.put("Data", entity.copy()); data.add(e); });
+            tag.put("BlockData", data);
         }
         return tag;
     }
@@ -157,7 +220,19 @@ public final class Ship {
         if (tag.hasUUID("Pilot")) ship.pilot = tag.getUUID("Pilot");
         if (tag.contains("AnchorX")) ship.pilotAnchor = new Vec3(tag.getDouble("AnchorX"), tag.getDouble("AnchorY"), tag.getDouble("AnchorZ"));
         var lookup = registries.lookupOrThrow(Registries.BLOCK);
-        for (Tag e : tag.getList("Blocks", Tag.TAG_COMPOUND)) {
+        if (tag.contains("Palette", Tag.TAG_LIST)) {
+            ListTag paletteTag = tag.getList("Palette", Tag.TAG_COMPOUND);
+            BlockState[] palette = new BlockState[paletteTag.size()];
+            for (int i = 0; i < palette.length; i++) palette[i] = NbtUtils.readBlockState(lookup, paletteTag.getCompound(i));
+            long[] positions = tag.getLongArray("BlockPositions");
+            int[] states = tag.getIntArray("BlockStates");
+            for (int i = 0; i < Math.min(positions.length, states.length); i++)
+                if (states[i] >= 0 && states[i] < palette.length) ship.blocks.put(BlockPos.of(positions[i]), palette[states[i]]);
+            for (Tag e : tag.getList("BlockData", Tag.TAG_COMPOUND)) {
+                CompoundTag entry = (CompoundTag) e;
+                ship.blockEntities.put(BlockPos.of(entry.getLong("Pos")), entry.getCompound("Data"));
+            }
+        } else for (Tag e : tag.getList("Blocks", Tag.TAG_COMPOUND)) {          // saves from before the palette format
             CompoundTag entry = (CompoundTag) e; BlockPos p = BlockPos.of(entry.getLong("Pos"));
             ship.blocks.put(p, NbtUtils.readBlockState(lookup, entry.getCompound("State")));
             if (entry.contains("Data")) ship.blockEntities.put(p, entry.getCompound("Data"));

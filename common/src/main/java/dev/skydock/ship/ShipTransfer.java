@@ -21,10 +21,11 @@ public final class ShipTransfer {
             if (entity != null) ship.blockEntities.put(p, entity.saveWithFullMetadata(level.registryAccess()));
         }
     }
-    public static void flush(MinecraftServer server) {
+    /** Writes the journal, then the chunks of the levels a phase edited, before the next phase begins. */
+    public static void flush(MinecraftServer server, ServerLevel... edited) {
         ShipSavedData.get(server).setDirty();
-        // Flush the journal and chunk writes before advancing a transfer phase.
-        server.saveEverything(false, true, true);
+        server.overworld().getDataStorage().save();
+        for (ServerLevel level : edited) level.getChunkSource().save(true);
     }
     public static void complete(MinecraftServer server, Ship ship) {
         if (ship.phase.equals("active")) return;
@@ -35,20 +36,22 @@ public final class ShipTransfer {
         try {
             if (ship.phase.equals("launching")) {
                 paste(ship, yard, ship.yard);
-                flush(server);
+                flush(server, yard);
                 clear(ship, destination, ship.transferOrigin);
                 ship.phase = "active";
                 ship.transferOrigin = null;
-                flush(server);
+                // The yard now holds the real block entities; keeping the journal copy would bloat every save.
+                ship.blockEntities.clear();
+                flush(server, destination);
             } else if (ship.phase.equals("redocking")) {
                 paste(ship, destination, ship.transferOrigin);
-                flush(server);
+                flush(server, destination);
                 clear(ship, yard, ship.yard);
                 ShipSavedData.get(server).ships.remove(ship.id);
                 ShipManager.releaseTickets(server, ship);
-                flush(server);
+                flush(server, yard);
             } else throw new IllegalStateException("Unknown transfer phase " + ship.phase);
-        } finally { changing = false; }
+        } finally { changing = false; ShipManager.fleetChanged(); }
     }
     private static void clear(Ship ship, ServerLevel level, BlockPos origin) {
         for (BlockPos p : ship.blocks.keySet()) {

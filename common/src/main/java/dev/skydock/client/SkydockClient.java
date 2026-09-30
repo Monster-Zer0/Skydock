@@ -22,6 +22,9 @@ public final class SkydockClient {
     private static final KeyMapping RELEASE = new KeyMapping("key.skydock.release", 82, "key.categories.skydock");
     private static final KeyMapping CRUISE = new KeyMapping("key.skydock.cruise", 67, "key.categories.skydock");
     private static boolean inWorld;
+    /** Entity collision asks for the level's ships on every move; rebuilt only when the ship map changes. */
+    private static List<Ship> levelShips;
+    private static net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> levelShipsDimension;
     private static long tick;
     private static float carriedYaw;
     public static void init() {
@@ -29,28 +32,57 @@ public final class SkydockClient {
                 (net.minecraft.server.packs.resources.ResourceManagerReloadListener) manager -> Minecraft.getInstance().execute(ShipRenderer::clear), dev.skydock.Skydock.id("hull_meshes"));
         ShipNetwork.clientReceiver = SkydockClient::receive;
         DockNetwork.clientReceiver = DockView::receive;
-        ShipManager.ClientShipAccess.provider = level -> SHIPS.values().stream().filter(s -> s.dimension.equals(level.dimension())).toList();
+        ShipManager.ClientShipAccess.provider = level -> {
+            if (levelShips == null || levelShipsDimension != level.dimension()) {
+                levelShips = SHIPS.values().stream().filter(s -> s.dimension.equals(level.dimension())).toList();
+                levelShipsDimension = level.dimension();
+            }
+            return levelShips;
+        };
         SkydockBlocks.DOCK_MENU.listen(type -> MenuRegistry.registerScreenFactory(type, DockScreen::new));
         SkydockBlocks.DEVICE_MENU.listen(type -> MenuRegistry.registerScreenFactory(type, DeviceScreen::new));
         SkydockBlocks.ENGINE_MENU.listen(type -> MenuRegistry.registerScreenFactory(type, EngineScreen::new));
         KeyMappingRegistry.register(RELEASE);
         KeyMappingRegistry.register(CRUISE);
+        ShipCamera.init();
         ClientTickEvent.CLIENT_PRE.register(SkydockClient::tick);
         ClientTickEvent.CLIENT_POST.register(SkydockClient::moveShips);
         ClientGuiEvent.RENDER_HUD.register((graphics, delta) -> {
-            Ship ship = piloted();
-            if (ship == null) ship = aboard();
-            if (ship == null) return;
             var mc = Minecraft.getInstance();
-            String text = String.format(Locale.ROOT, "SKYDOCK  |  %.1f blocks/s  |  Altitude %.0f%s%s",
-                    ship.velocity.length() * 20, ship.pose.y(), ship.cruise ? String.format(Locale.ROOT, "  |  CRUISE %.1f blocks/s", ship.cruiseSpeed * 20) : "", ship.blocked ? "  |  OBSTRUCTED" : "");
-            String controls = piloted() != null
-                    ? thrustKeys() + " speed   " + turnKeys() + " turn   " + altitudeKeys() + " altitude   " + cruiseKey() + " cruise   " + releaseKey() + " release"
-                    : "Walk and use storage aboard   " + cruiseKey() + " cruise";
-            graphics.fill(8, 8, Math.max(mc.font.width(text), mc.font.width(controls)) + 20, 40, 0xCC101E28);
-            graphics.drawString(mc.font, text, 14, 14, 0xFF9AE4D2);
-            graphics.drawString(mc.font, controls, 14, 27, 0xFFE3E6E8);
+            if (mc.options.hideGui || mc.getDebugOverlay().showDebugScreen()) return;
+            Ship piloted = piloted(), seated = seatedShip(), ship = piloted != null ? piloted : seated != null ? seated : aboard();
+            if (ship == null) return;
+            List<String> status = new ArrayList<>(List.of("SKYDOCK", String.format(Locale.ROOT, "%.1f blocks/s", ship.velocity.length() * 20),
+                    String.format(Locale.ROOT, "Altitude %.0f", ship.pose.y())));
+            if (ship.cruise) status.add(String.format(Locale.ROOT, "CRUISE %.1f blocks/s", ship.cruiseSpeed * 20));
+            if (ship.blocked) status.add("OBSTRUCTED");
+            String view = ShipCamera.active() ? "Scroll or " + keyLabel(ShipCamera.ZOOM_IN) + "/" + keyLabel(ShipCamera.ZOOM_OUT) + " zoom"
+                    : keyLabel(mc.options.keyTogglePerspective) + " ship view";
+            List<String> controls = piloted != null
+                    ? List.of(thrustKeys() + " speed", turnKeys() + " turn", altitudeKeys() + " altitude", cruiseKey() + " cruise", releaseKey() + " release", view)
+                    : seated != null ? List.of(releaseKey() + " stand up", cruiseKey() + " cruise", view)
+                    : List.of("Walk and use storage aboard", cruiseKey() + " cruise");
+            // Wrap between hints rather than running off narrow windows.
+            int maxWidth = graphics.guiWidth() - 28;
+            List<String> statusLines = wrap(mc.font, status, "  |  ", maxWidth), controlLines = wrap(mc.font, controls, "   ", maxWidth);
+            int width = 0, lines = statusLines.size() + controlLines.size();
+            for (String line : statusLines) width = Math.max(width, mc.font.width(line));
+            for (String line : controlLines) width = Math.max(width, mc.font.width(line));
+            graphics.fill(8, 8, width + 20, 14 + lines * 13, 0xCC101E28);
+            int y = 14;
+            for (String line : statusLines) { graphics.drawString(mc.font, line, 14, y, 0xFF9AE4D2); y += 13; }
+            for (String line : controlLines) { graphics.drawString(mc.font, line, 14, y, 0xFFE3E6E8); y += 13; }
         });
+    }
+    private static List<String> wrap(net.minecraft.client.gui.Font font, List<String> parts, String separator, int width) {
+        List<String> lines = new ArrayList<>(); String line = "";
+        for (String part : parts) {
+            String joined = line.isEmpty() ? part : line + separator + part;
+            if (!line.isEmpty() && font.width(joined) > width) { lines.add(line); line = part; }
+            else line = joined;
+        }
+        if (!line.isEmpty()) lines.add(line);
+        return lines;
     }
     /** Resolved name of a binding, so help text follows the player's own controls instead of the defaults. */
     public static String keyLabel(KeyMapping mapping) { return mapping.getTranslatedKeyMessage().getString(); }
@@ -64,9 +96,11 @@ public final class SkydockClient {
         if (player == null) return null;
         return SHIPS.values().stream().filter(s -> player.getUUID().equals(s.pilot)).findFirst().orElse(null);
     }
-    public static boolean seated() {
+    public static boolean seated() { return seatedShip() != null; }
+    public static Ship seatedShip() {
         var player = Minecraft.getInstance().player;
-        return player != null && SHIPS.values().stream().anyMatch(s -> s.seated.containsKey(player.getUUID()));
+        if (player == null) return null;
+        return SHIPS.values().stream().filter(s -> s.seated.containsKey(player.getUUID())).findFirst().orElse(null);
     }
     public static float carriedYaw() { return carriedYaw; }
     public static ShipMovementFrame.Frame movementFrame(LocalPlayer player) {
@@ -97,7 +131,7 @@ public final class SkydockClient {
     }
     private static void tick(Minecraft mc) {
         if (mc.level == null || mc.player == null) {
-            if (inWorld) { SHIPS.clear(); pending.clear(); motions.clear(); ShipRenderer.clear(); }
+            if (inWorld) { SHIPS.clear(); levelShips = null; pending.clear(); motions.clear(); ShipRenderer.clear(); }
             carriedYaw = 0;
             inWorld = false; return;
         }
@@ -105,6 +139,7 @@ public final class SkydockClient {
         tick++;
         if (mc.screen == null && RELEASE.consumeClick()) ShipNetwork.input(2, 0, 0, 0);
         if (mc.screen == null && CRUISE.consumeClick()) ShipNetwork.input(4, 0, 0, 0);
+        ShipCamera.tick(mc);
         Ship pilot = piloted();
         if (pilot != null && tick % 2 == 0) {
             float thrust = mc.screen == null ? axis(mc.options.keyUp.isDown(), mc.options.keyDown.isDown()) : 0;
@@ -144,7 +179,7 @@ public final class SkydockClient {
         }
         if (data.getString("Kind").equals("manifest")) {
             Set<UUID> active = new HashSet<>(); for (Tag e : data.getList("Ships", Tag.TAG_COMPOUND)) active.add(((CompoundTag) e).getUUID("Id"));
-            SHIPS.keySet().retainAll(active); pending.keySet().retainAll(active); motions.keySet().retainAll(active); ShipRenderer.retain(active); return;
+            SHIPS.keySet().retainAll(active); levelShips = null; pending.keySet().retainAll(active); motions.keySet().retainAll(active); ShipRenderer.retain(active); return;
         }
         UUID id = data.getUUID("Id");
         if (data.getString("Kind").equals("blocks")) {
@@ -153,13 +188,13 @@ public final class SkydockClient {
             for (Tag e : data.getList("CellsData", Tag.TAG_COMPOUND)) {
                 CompoundTag entry = (CompoundTag) e; BlockPos pos = BlockPos.of(entry.getLong("Pos"));
                 ship.blocks.put(pos, Block.stateById(entry.getInt("State")));
-                if (entry.contains("Data")) ship.blockEntities.put(pos, entry.getCompound("Data"));
+                if (entry.contains("Data")) ship.blockEntities.put(pos, entry.getCompound("Data").copy());
             }
             if (data.getInt("Part") + 1 == data.getInt("Parts")) {
                 pending.remove(id);
                 ShipMotion motion = motions.computeIfAbsent(id, key -> new ShipMotion());
                 motion.accept(data.getLong("Tick"), ship.pose, ship.velocity, ship.yawVelocity);
-                Ship old = SHIPS.put(id, ship);
+                Ship old = SHIPS.put(id, ship); levelShips = null;
                 if (old != null) { ship.pose = old.pose; ship.previousPose = old.previousPose; ship.seated.putAll(old.seated); }
                 ShipRenderer.invalidate(id);
                 if (data.getBoolean("Boarding") && mc.player != null) {
@@ -178,7 +213,7 @@ public final class SkydockClient {
                     new ShipPose(data.getDouble("X"), data.getDouble("Y"), data.getDouble("Z"), data.getDouble("Yaw")), ship.velocity, ship.yawVelocity);
             ship.pilot = data.hasUUID("Pilot") ? data.getUUID("Pilot") : null;
             ship.pilotAnchor = data.contains("AnchorX") ? new net.minecraft.world.phys.Vec3(data.getDouble("AnchorX"), data.getDouble("AnchorY"), data.getDouble("AnchorZ")) : null;
-            ship.lift = data.getDouble("Lift"); ship.mass = data.getDouble("Mass"); ship.blocked = data.getBoolean("Blocked");
+            ship.lift = data.getDouble("Lift"); ship.mass = data.getDouble("Mass"); ship.blocked = data.getBoolean("Blocked"); ship.moored = data.getBoolean("Moored");
             ship.seated.clear(); for (Tag e : data.getList("Seated", Tag.TAG_COMPOUND)) {
                 CompoundTag tag = (CompoundTag) e; ship.seated.put(tag.getUUID("Player"), BlockPos.of(tag.getLong("Pos")));
             }

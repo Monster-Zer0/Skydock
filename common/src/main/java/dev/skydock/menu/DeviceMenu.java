@@ -69,19 +69,15 @@ public final class DeviceMenu extends AbstractContainerMenu {
     public double value() { return (((data.get(3) & 0xffff) << 16) | (data.get(2) & 0xffff)) / 10.0; }
     public double speed() { return data.get(4) / 10.0; }
     private static ContainerData groundData(ServerPlayer player, BlockPos pos, DeviceBlock.Kind kind) {
-        return dynamic(index -> {
+        return dynamic(player.level(), () -> {
             var state = player.level().getBlockState(pos);
             int amount = kind == DeviceBlock.Kind.LIFT && matches(state, kind) ? LiftCellBlock.clusterSize(player.level(), pos) : 1;
-            return switch (index) {
-                case 0 -> 0; case 1 -> amount;
-                case 2 -> encode(kind == DeviceBlock.Kind.LIFT ? amount * MassTable.liftPerCell() : kind == DeviceBlock.Kind.BALLAST ? MassTable.mass(state) : 0) & 0xffff;
-                case 3 -> encode(kind == DeviceBlock.Kind.LIFT ? amount * MassTable.liftPerCell() : kind == DeviceBlock.Kind.BALLAST ? MassTable.mass(state) : 0) >>> 16;
-                default -> 0;
-            };
+            int measured = encode(kind == DeviceBlock.Kind.LIFT ? amount * MassTable.liftPerCell() : kind == DeviceBlock.Kind.BALLAST ? MassTable.mass(state) : 0);
+            return new int[] { 0, amount, measured & 0xffff, measured >>> 16, 0 };
         });
     }
     private static ContainerData shipData(ServerPlayer player, Ship ship, BlockPos local, DeviceBlock.Kind kind) {
-        return dynamic(index -> {
+        return dynamic(player.level(), () -> {
             int flags = (ship.moored ? 1 : 0) | (ship.cruise ? 2 : 0) | (ship.pilot != null ? 4 : 0)
                     | (player.getUUID().equals(ship.pilot) ? 8 : 0) | (ship.seated.containsValue(local) ? 16 : 0)
                     | (local.equals(ship.seated.get(player.getUUID())) ? 32 : 0);
@@ -90,12 +86,18 @@ public final class DeviceMenu extends AbstractContainerMenu {
                 case LIFT -> amount * MassTable.liftPerCell(); case BALLAST -> MassTable.mass(ship.state(local)); default -> 0;
             };
             int measured = encode(value);
-            return switch (index) { case 0 -> flags; case 1 -> amount; case 2 -> measured & 0xffff; case 3 -> measured >>> 16; default -> encode(ship.velocity.length() * 20); };
+            return new int[] { flags, amount, measured & 0xffff, measured >>> 16, encode(ship.velocity.length() * 20) };
         });
     }
-    private static ContainerData dynamic(java.util.function.IntUnaryOperator getter) {
+    /** Menu sync reads every slot twice a tick, and a lift cluster is a flood fill, so compute all five once per tick. */
+    private static ContainerData dynamic(net.minecraft.world.level.Level level, java.util.function.Supplier<int[]> values) {
         return new ContainerData() {
-            @Override public int get(int index) { return getter.applyAsInt(index); }
+            private long computedAt = Long.MIN_VALUE;
+            private int[] cached;
+            @Override public int get(int index) {
+                if (cached == null || level.getGameTime() != computedAt) { cached = values.get(); computedAt = level.getGameTime(); }
+                return cached[index];
+            }
             @Override public void set(int index, int value) {}
             @Override public int getCount() { return 5; }
         };

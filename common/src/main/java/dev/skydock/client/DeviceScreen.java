@@ -54,7 +54,7 @@ public final class DeviceScreen extends AbstractContainerScreen<DeviceMenu> {
                     SkydockClient.cruiseKey() + " toggles cruise" };
             case CLAMP -> new String[] { (flags & 1) != 0 ? "Mooring clamp secured" : "Mooring clamp released", "Locks the ship only near its reserved berth", "Securing stops motion and cruise" };
             case SEAT -> new String[] { (flags & 32) != 0 ? "You are seated" : (flags & 16) != 0 ? "Seat occupied" : "Seat available", "Seats carry crew with the moving deck", "Press " + SkydockClient.releaseKey() + " at any time to stand" };
-            case LIFT -> new String[] { menu.amount() + " connected canvas lift cells", String.format(java.util.Locale.ROOT, "Cluster lift: %.0f kg", menu.value()), "Connect cells on any face to expand." };
+            case LIFT -> new String[] { menu.amount() + (menu.amount() == 1 ? " connected canvas lift cell" : " connected canvas lift cells"), String.format(java.util.Locale.ROOT, "Cluster lift: %.0f kg", menu.value()), "Connect cells on any face to expand." };
             case BALLAST -> new String[] { String.format(java.util.Locale.ROOT, "Block mass: %.0f kg", menu.value()), "Ballast adds stable hull mass", "Ship lift must exceed total mass" };
         };
     }

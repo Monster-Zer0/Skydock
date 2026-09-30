@@ -9,7 +9,7 @@ public final class SkydockNeoForgeClient {
         SkydockClient.init();
         NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent event) -> {
             if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES)
-                ShipRenderer.render(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
+                ShipRenderer.render(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera(), event.getFrustum(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
         });
     }
 }

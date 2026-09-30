@@ -30,6 +30,21 @@ class ShipPoseTest {
         AABB bounds = pose.toWorld(source).inflate(1e-8);
         for (int i = 0; i < 8; i++) assertTrue(bounds.contains(pose.toWorld(new Vec3((i & 1) == 0 ? -16 : 16, (i & 2) == 0 ? 0 : 20, (i & 4) == 0 ? -16 : 16))));
     }
+    @Test void precomputedTransformMatchesCornerTransform() {
+        AABB[] boxes = {new AABB(-2, 0, -8, 2, 5, 8), new AABB(3.25, -1, 7.5, 4.25, 0, 8.5), new AABB(-40, 2, 11, -39.5, 3.5, 30)};
+        for (double yaw : new double[]{0, 17.5, 90, 135, -63, 359.9, 721}) {
+            ShipPose pose = new ShipPose(-77.5, 83, 1099.25, yaw);
+            ShipPose.Transform transform = pose.transform();
+            for (AABB box : boxes) {
+                assertBoxEquals(pose.toWorld(box), transform.toWorld(box));
+                assertBoxEquals(pose.toLocal(box), transform.toLocal(box));
+            }
+        }
+    }
+    private static void assertBoxEquals(AABB expected, AABB actual) {
+        assertEquals(expected.minX, actual.minX, 1e-9); assertEquals(expected.minY, actual.minY, 1e-9); assertEquals(expected.minZ, actual.minZ, 1e-9);
+        assertEquals(expected.maxX, actual.maxX, 1e-9); assertEquals(expected.maxY, actual.maxY, 1e-9); assertEquals(expected.maxZ, actual.maxZ, 1e-9);
+    }
     @Test void carryingRetainsTheSameDeckLocation() {
         ShipPose before = new ShipPose(0, 80, 0, 12), after = new ShipPose(1, 80.1, -2, 14);
         Vec3 localFeet = new Vec3(-5, 1, 7);

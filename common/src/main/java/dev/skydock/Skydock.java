@@ -27,6 +27,7 @@ public final class Skydock {
 
     public static void init() {
         SkydockBlocks.init();
+        dev.skydock.ship.ShipDamage.init();
         ShipNetwork.init();
         DockNetwork.init();
         ReloadListenerRegistry.register(PackType.SERVER_DATA, new MassTable(), id("mass"));
@@ -45,7 +46,8 @@ public final class Skydock {
             if (dev.skydock.ship.ShipTransfer.changing) return EventResult.pass();
             if (level.dimension().equals(ShipManager.SHIPYARD)
                     || level instanceof net.minecraft.server.level.ServerLevel serverLevel && AssemblyManager.protects(serverLevel, pos)
-                    || ShipManager.ships(level).stream().anyMatch(s -> s.bounds().intersects(new net.minecraft.world.phys.AABB(pos))))
+                    // The occupied hull, not the whole dock envelope, so players can still build beside a moored ship.
+                    || ShipManager.ships(level).stream().anyMatch(s -> s.hullWorldBounds().intersects(new net.minecraft.world.phys.AABB(pos))))
                 return EventResult.interruptFalse();
             return EventResult.pass();
         });

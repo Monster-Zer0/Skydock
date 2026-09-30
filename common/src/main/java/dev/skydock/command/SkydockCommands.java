@@ -32,7 +32,10 @@ public final class SkydockCommands {
             ShipManager.control(ctx.getSource().getPlayerOrException(), FloatArgumentType.getFloat(ctx, "thrust"), FloatArgumentType.getFloat(ctx, "yaw"), FloatArgumentType.getFloat(ctx, "climb")); return 1;
         })))));
         root.then(literal("status").executes(ctx -> {
-            var ships = ShipManager.ships(ctx.getSource().getLevel());
+            // Operators see every ship; players see only ships they may use, so other crews' positions and pilots stay private.
+            ServerPlayer viewer = ctx.getSource().getPlayer();
+            var ships = ShipManager.ships(ctx.getSource().getLevel()).stream()
+                    .filter(ship -> viewer == null || ctx.getSource().hasPermission(2) || ShipManager.permitted(viewer, ship)).toList();
             ctx.getSource().sendSuccess(() -> Component.literal("Skydock ships: " + ships.size()), false);
             for (Ship ship : ships) ctx.getSource().sendSuccess(() -> Component.literal(String.format(Locale.ROOT,
                     "%s | %s | blocks=%d mass=%.0f lift=%.0f | pose=%.3f,%.3f,%.3f yaw=%.3f | velocity=%.3f,%.3f,%.3f | yard=%s | cruise=%s target=%.3f turn=%.3f | moored=%s blocked=%s pilot=%s",

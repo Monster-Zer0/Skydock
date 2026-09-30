@@ -78,10 +78,8 @@ public final class AssemblyManager {
         int maxChunkZ = ((int) Math.ceil(footprint.maxZ) - 1) >> 4;
         for (int x = minChunkX; x <= maxChunkX; x++) for (int z = minChunkZ; z <= maxChunkZ; z++)
             if (!level.hasChunk(x, z)) return new Check(false, "Load the entire assembly footprint before building.");
-        if (!level.getEntities((Entity) null, footprint, entity -> !entity.isSpectator()).isEmpty())
-            return new Check(false, "Move players, mobs, and vehicles out of the assembly footprint.");
-        for (Ship ship : ShipManager.ships(level)) if (ship.bounds().intersects(footprint))
-            return new Check(false, "Another launched ship overlaps the assembly footprint.");
+        String occupant = occupant(level, footprint);
+        if (occupant != null) return new Check(false, occupant);
 
         Map<BlockPos, BlockState> allowed = new HashMap<>();
         if (dock.assemblyJob() != null) {
@@ -98,6 +96,15 @@ public final class AssemblyManager {
                 return new Check(false, "Clear every block from the ship's assembly footprint.");
         }
         return new Check(true, "Space is clear.");
+    }
+
+    /** Things that can move out of the way on their own, so a running assembly waits for them rather than failing. */
+    private static String occupant(ServerLevel level, AABB footprint) {
+        if (!level.getEntities((Entity) null, footprint, entity -> !entity.isSpectator()).isEmpty())
+            return "Move players, mobs, and vehicles out of the assembly footprint.";
+        for (Ship ship : ShipManager.ships(level)) if (ship.pose.toWorld(ship.hullBounds()).intersects(footprint))
+            return "Another launched ship overlaps the assembly footprint.";
+        return null;
     }
 
     public static boolean start(ServerPlayer player, DockBlockEntity dock) {
@@ -132,12 +139,15 @@ public final class AssemblyManager {
         if (level.getGameTime() - job.lastStep < STEP_TICKS) return;
         job.lastStep = level.getGameTime();
         ShipPattern pattern = selected(dock);
-        if (!chunksLoaded(level, pattern.bounds(job.decorations).move(dock.tier().origin(dock.getBlockPos())))) {
-            if (!dock.status().equals("Assembly paused until its footprint is loaded."))
-                dock.setStatus("Assembly paused until its footprint is loaded.");
+        AABB footprint = pattern.bounds(job.decorations).move(dock.tier().origin(dock.getBlockPos()));
+        boolean loaded = chunksLoaded(level, footprint);
+        String occupant = loaded ? occupant(level, footprint) : null;
+        String paused = !loaded ? "Assembly paused until its footprint is loaded." : occupant != null ? "Assembly paused. " + occupant : null;
+        if (paused != null) {
+            if (!dock.status().equals(paused)) dock.setStatus(paused);
             return;
         }
-        if (dock.status().equals("Assembly paused until its footprint is loaded.")) dock.setStatus("Assembly in progress.");
+        if (dock.status().startsWith("Assembly paused")) dock.setStatus("Assembly in progress.");
         BlockPos origin = dock.tier().origin(dock.getBlockPos());
         boolean recovered = false;
         // A world chunk may have saved just ahead of the dock journal. Adopt only the contiguous

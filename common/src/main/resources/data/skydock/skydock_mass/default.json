@@ -19,5 +19,13 @@
     "skydock:ballast": 250,
     "minecraft:obsidian": 50,
     "minecraft:gold_block": 190
+  },
+  "collision": {
+    "min_speed": 3.0,
+    "speed_per_hardness": 1.5,
+    "blocks_per_speed": 1.0,
+    "max_blocks": 32,
+    "entity_damage_per_speed": 1.0,
+    "damage_other_ships": true
   }
 }

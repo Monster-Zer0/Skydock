@@ -17,12 +17,14 @@ public final class MassTable extends SimpleJsonResourceReloadListener {
     private static double defaultMass = 10, liftPerCell = 1000;
     private static int blocksPerCell = 128;
     private static Map<String, Integer> caps = Map.of();
+    private static CollisionRules collision = CollisionRules.DEFAULT;
     public MassTable() { super(new Gson(), "skydock_mass"); }
 
     @Override protected void apply(Map<ResourceLocation, JsonElement> files, ResourceManager manager, ProfilerFiller profiler) {
         Map<ResourceLocation, Double> next = new HashMap<>();
         Map<String, Integer> nextCaps = new HashMap<>();
         double nextDefault = 10, nextLift = 1000; int nextSlice = 128;
+        CollisionRules nextCollision = CollisionRules.DEFAULT;
         for (var file : new TreeMap<>(files).entrySet()) {
             try {
                 JsonObject json = file.getValue().getAsJsonObject();
@@ -37,17 +39,19 @@ public final class MassTable extends SimpleJsonResourceReloadListener {
                     if (!BuiltInRegistries.BLOCK.containsKey(id)) throw new IllegalArgumentException("Unknown block " + id);
                     fileMasses.put(id, positive(e.getValue().getAsDouble()));
                 }
+                CollisionRules fileCollision = json.has("collision") ? CollisionRules.parse(json.getAsJsonObject("collision"), nextCollision) : nextCollision;
                 if (json.has("dock_caps")) for (DockTier tier : DockTier.values()) {
                     if (json.getAsJsonObject("dock_caps").has(tier.key())) fileCaps.put(tier.key(),
                             (int) Math.min(24576, positive(json.getAsJsonObject("dock_caps").get(tier.key()).getAsInt())));
                 }
                 next.putAll(fileMasses); nextCaps.putAll(fileCaps);
-                nextDefault = fileDefault; nextLift = fileLift; nextSlice = fileSlice;
+                nextDefault = fileDefault; nextLift = fileLift; nextSlice = fileSlice; nextCollision = fileCollision;
             } catch (RuntimeException ex) { Skydock.LOGGER.error("Invalid Skydock mass rules {}", file.getKey(), ex); }
         }
         masses = Map.copyOf(next); caps = Map.copyOf(nextCaps);
-        defaultMass = nextDefault; liftPerCell = nextLift; blocksPerCell = nextSlice;
+        defaultMass = nextDefault; liftPerCell = nextLift; blocksPerCell = nextSlice; collision = nextCollision;
     }
+    public static CollisionRules collision() { return collision; }
     private static double positive(double value) {
         if (!Double.isFinite(value) || value <= 0 || value > 1e9) throw new IllegalArgumentException("Value must be finite, positive, and at most 1,000,000,000");
         return value;
