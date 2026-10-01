@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Strip coplanar internal faces and connected-boundary faces from lift_cell_*.json models.
+"""Strip coplanar internal faces and inset connected-boundary geometry on lift_cell_*.json.
 
 Bit order for lift_cell_<mask>: east, west, up, down, south, north.
 
-Opposite abutting faces are removed only when a face is nearly fully covered by its
-neighbor on that plane (>= COVER). Partially covered silhouette faces are kept so
-stepped envelope slabs do not get hull holes.
+Connected sides are inset (not deleted) so hollow balloon shells do not open
+see-through tunnels through a cluster. Coplanar faces are removed only when a
+face is nearly fully covered by its neighbor (>= COVER).
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ BITS = ("east", "west", "up", "down", "south", "north")
 EPS = 1e-3
 BOUND = 0.05
 COVER = 0.95
+INSET = 0.05
 
 
 def overlaps_interval(a0: float, a1: float, b0: float, b1: float) -> bool:
@@ -162,25 +163,47 @@ def strip_coplanar(elements: list[dict]) -> int:
     return removed
 
 
-def strip_connected(elements: list[dict], mask: int) -> int:
+def inset_connected(elements: list[dict], mask: int) -> int:
+    """Pull geometry off connected block faces so neighbors do not z-fight or open tunnels."""
     connected = {BITS[i]: bool(mask & (1 << i)) for i in range(6)}
-    removed = 0
+    changed = 0
     for el in elements:
-        faces = el.setdefault("faces", {})
         fr, to = el["from"], el["to"]
-        checks = (
-            ("east", connected["east"], to[0] >= 16 - BOUND, "east"),
-            ("west", connected["west"], fr[0] <= BOUND, "west"),
-            ("up", connected["up"], to[1] >= 16 - BOUND, "up"),
-            ("down", connected["down"], fr[1] <= BOUND, "down"),
-            ("south", connected["south"], to[2] >= 16 - BOUND, "south"),
-            ("north", connected["north"], fr[2] <= BOUND, "north"),
-        )
-        for _name, is_conn, on_bound, face in checks:
-            if is_conn and on_bound and face in faces:
-                del faces[face]
-                removed += 1
-    return removed
+        before = (fr[0], fr[1], fr[2], to[0], to[1], to[2])
+        if connected["east"]:
+            if to[0] > 16 - INSET:
+                to[0] = 16 - INSET
+            if fr[0] > 16 - INSET:
+                fr[0] = 16 - INSET
+        if connected["west"]:
+            if fr[0] < INSET:
+                fr[0] = INSET
+            if to[0] < INSET:
+                to[0] = INSET
+        if connected["up"]:
+            if to[1] > 16 - INSET:
+                to[1] = 16 - INSET
+            if fr[1] > 16 - INSET:
+                fr[1] = 16 - INSET
+        if connected["down"]:
+            if fr[1] < INSET:
+                fr[1] = INSET
+            if to[1] < INSET:
+                to[1] = INSET
+        if connected["south"]:
+            if to[2] > 16 - INSET:
+                to[2] = 16 - INSET
+            if fr[2] > 16 - INSET:
+                fr[2] = 16 - INSET
+        if connected["north"]:
+            if fr[2] < INSET:
+                fr[2] = INSET
+            if to[2] < INSET:
+                to[2] = INSET
+        after = (fr[0], fr[1], fr[2], to[0], to[1], to[2])
+        if after != before:
+            changed += 1
+    return changed
 
 
 def fix_model(path: Path) -> tuple[int, int, int]:
@@ -188,9 +211,18 @@ def fix_model(path: Path) -> tuple[int, int, int]:
     data = json.loads(path.read_text())
     elements = data.get("elements", [])
     coplanar = strip_coplanar(elements)
-    connected = strip_connected(elements, mask)
-    kept = [el for el in elements if el.get("faces")]
-    dropped = len(elements) - len(kept)
+    connected = inset_connected(elements, mask)
+    kept = []
+    dropped = 0
+    for el in elements:
+        fr, to = el["from"], el["to"]
+        if to[0] - fr[0] <= EPS or to[1] - fr[1] <= EPS or to[2] - fr[2] <= EPS:
+            dropped += 1
+            continue
+        if not el.get("faces"):
+            dropped += 1
+            continue
+        kept.append(el)
     data["elements"] = kept
     path.write_text(json.dumps(data, indent=2) + "\n")
     return coplanar, connected, dropped
@@ -254,18 +286,17 @@ def verify() -> tuple[int, int]:
                     if "south" in a.get("faces", {}) and "south" in b.get("faces", {}):
                         coplanar_left += 1
             fr, to = a["from"], a["to"]
-            faces = a.get("faces", {})
-            if connected["east"] and to[0] >= 16 - BOUND and "east" in faces:
+            if connected["east"] and to[0] > 16 - INSET + EPS:
                 connected_left += 1
-            if connected["west"] and fr[0] <= BOUND and "west" in faces:
+            if connected["west"] and fr[0] < INSET - EPS:
                 connected_left += 1
-            if connected["up"] and to[1] >= 16 - BOUND and "up" in faces:
+            if connected["up"] and to[1] > 16 - INSET + EPS:
                 connected_left += 1
-            if connected["down"] and fr[1] <= BOUND and "down" in faces:
+            if connected["down"] and fr[1] < INSET - EPS:
                 connected_left += 1
-            if connected["south"] and to[2] >= 16 - BOUND and "south" in faces:
+            if connected["south"] and to[2] > 16 - INSET + EPS:
                 connected_left += 1
-            if connected["north"] and fr[2] <= BOUND and "north" in faces:
+            if connected["north"] and fr[2] < INSET - EPS:
                 connected_left += 1
     return coplanar_left, connected_left
 
@@ -281,10 +312,15 @@ def main() -> int:
         total_c += c
         total_b += b
         total_d += d
-        print(f"{path.name}: removed coplanar={c} boundary={b} empty_elements={d}")
+        print(f"{path.name}: removed coplanar={c} inset_elements={b} empty_elements={d}")
     left_c, left_b = verify()
-    print(f"totals: coplanar={total_c} boundary={total_b} empty_elements={total_d}")
-    print(f"verify remaining: coplanar={left_c} connected_boundary={left_b}")
+    print(f"totals: coplanar={total_c} inset_elements={total_b} empty_elements={total_d}")
+    print(f"verify remaining: coplanar={left_c} connected_protrusion={left_b}")
+    # Fully connected cells must keep geometry (inset shells), not vanish.
+    mask63 = json.loads((MODEL_DIR / "lift_cell_63.json").read_text())
+    if not mask63.get("elements"):
+        print("lift_cell_63 has no elements after inset; connected shells must stay sealed", file=sys.stderr)
+        return 2
     return 0 if left_c == 0 and left_b == 0 else 2
 
 
